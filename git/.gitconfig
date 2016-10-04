@@ -1,6 +1,7 @@
 [user]
-	name = Jesse Dailey
-	email = jesse.dailey@gmail.com
+	name = Jesse Granger
+	email = jesse_dailey@fastmail.com
+	signingKey = B045511F
 [core]
 	excludesFile = ~/.cvsignore
 	askpass = /bin/echo
@@ -21,3 +22,5 @@
 	default = matching
 [color]
 	ui = true
+[commit]
+	gpgsign = true
