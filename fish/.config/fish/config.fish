@@ -1,12 +1,15 @@
 
-alias gst="git status"
-alias gco="git checkout"
+function gst --wraps git
+	git status --short $argv
+end
 
-alias vup="vagrant up"
-alias vsh="vagrant ssh"
-alias vpr="vagrant provision"
-alias vst="vagrant status"
-alias lsa="ls -hal"
+function gco --wraps git
+	git checkout $argv
+end
+
+function lsa --wraps ls
+	ls -hal $argv
+end
 
 function vi --wraps vim
 	env SHELL=/bin/bash vim $argv
