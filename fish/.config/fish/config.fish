@@ -23,6 +23,10 @@ function goo
 	googler -j $argv
 end
 
+function dc --wraps docker-compose
+	docker-compose $argv
+end
+
 function _prompt_user
 	set_color yellow
 	printf '%s' $USER
