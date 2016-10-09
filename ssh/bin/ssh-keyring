@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+
+RING=${HOME}/.ssh/keyring
+mkdir -p ${RING}
+case $1 in
+
+list)
+	for file in ${RING}/*.pub; do
+		ssh-keygen -lf $file -E md5
+	done
+;;
+
+agent)
+	ssh-add `ls ${RING}/* | grep -v '.pub$'`
+;;
+
+install)
+	AUTH=$2
+	scp $0 ${AUTH}:bin/ssh-keyring
+;;
+
+push)
+	AUTH=$2
+	ssh ${AUTH} "mkdir -p ~/.ssh/keyring"
+	scp -r ${RING}/* ${AUTH}:.ssh/keyring/
+;;
+
+pull)
+	AUTH=$2
+	scp -r ${AUTH}:.ssh/keyring/* ${RING}/
+;;
+
+whoami)
+	cat ~/.ssh/id_rsa.pub | awk '{print $3}'
+;;
+
+use)
+	KEY=${RING}/$2
+	[ -e "${KEY}" ] \
+		|| (echo File not found: $KEY && exit 1)
+	# TODO: safety check here, if id_rsa isn't our expected symlink, dont clubber it
+	ln -sf ${KEY} ~/.ssh/id_rsa
+	[ -e "${KEY}.pub" ] && ln -sf ${KEY}.pub ~/.ssh/id_rsa.pub
+	;;
+
+remove)
+	LABEL=$2
+	KEY=${RING}/${LABEL}
+	[ -e "${KEY}" ] || exit 1
+	rm ${KEY} ${KEY}.pub
+;;
+
+move)
+	INPUT_LABEL=$2
+	if [ -z "${INPUT_LABEL}" ]; then
+		echo 'Usage: ssh-keyring move <label> <label>'
+		exit 1
+	fi
+	OUTPUT_LABEL=$3
+	if [ -z "${OUTPUT_LABEL}" ]; then
+		echo 'Usage: ssh-keyring move <label> <label>'
+		exit 1
+	fi
+	INPUT_KEY=${RING}/${INPUT_LABEL}
+	OUTPUT_KEY=${RING}/${OUTPUT_LABEL}
+	mv ${INPUT_KEY} ${OUTPUT_KEY}
+	echo `ssh-keygen -y -f ${OUTPUT_KEY}` ${OUTPUT_LABEL} > ${OUTPUT_KEY}.pub
+;;
+
+
+add)
+	INPUT_KEY=$2
+	INPUT_LABEL=$3
+	[ -e "${INPUT_KEY}" ] \
+		|| (echo File not found: ${INPUT_KEY} && exit 1)
+	[ -z "${INPUT_LABEL}" ] \
+		&& echo Label is required. \
+		&& exit 1
+	INPUT_FINGERPRINT=`ssh-keygen -lf ${INPUT_KEY} -E md5 | awk '{print $2}'`
+	for file in ${RING}/*.pub; do
+		FILE_FINGERPRINT=`ssh-keygen -lf $file -E md5 | awk '{print $2}'`
+		[ "${FILE_FINGERPRINT}" = "${INPUT_FINGERPRINT}" ] \
+			&& echo Key already in keyring. \
+			&& echo ${FILE_FINGERPRINT} \
+			&& exit 1
+	done
+	OUTPUT_KEY=${RING}/${INPUT_LABEL}
+	[ -e "${OUTPUT_KEY}" ] \
+		&& (echo Key with label: ${INPUT_LABEL} already exists. && exit 1)
+	cp ${INPUT_KEY} ${OUTPUT_KEY}
+	chown ${USER} ${OUTPUT_KEY}
+	chmod 600 ${OUTPUT_KEY}
+	echo `ssh-keygen -y -f ${OUTPUT_KEY}` ${INPUT_LABEL} > ${OUTPUT_KEY}.pub
+;;
+
+*)
+	echo 'Usage: ssh-keyring add <private key> <label>'
+	echo '-  Inserts a new key in the keyring.'
+	echo 'Usage: ssh-keyring use <label>'
+	echo '-  Link the specified key to ~/.ssh/id_rsa so it is used as the default key.'
+	echo 'Usage: ssh-keyring list'
+	echo '-  Lists all labels currently in the keyring.'
+	echo 'Usage: ssh-keyring push <user@server>'
+	echo '-  Copy all keys from this keyring to a remote keyring.'
+	echo 'Usage: ssh-keyring pull <user@server>'
+	echo '-  Import all keys from a remote keyring to this keyring.'
+;;
+
+esac
