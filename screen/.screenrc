@@ -13,5 +13,8 @@ bufferfile "$HOME/.screen/exchange"
 hardcopydir "$HOME/.screen/hardcopy"
 sorendition dY
 hardstatus alwayslastline
-hardstatus string '%{= dW}%-Lw%{= dY}%50> %n*%f %t%{= dW}%+Lw%< %{= dW}%-=%D %m/%d/%y %h'
+hardstatus string '[%{= dW}%-Lw%{= dY}%50> %n*%f %t%{= dW}%+Lw%< %{= dW} ]'
 
+shelltitle "> |fish"
+
+setenv SSH_AUTH_SOCK $HOME/.ssh/ssh_auth_sock
