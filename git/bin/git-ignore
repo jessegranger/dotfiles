@@ -4,5 +4,6 @@ if [ -z "$@" ]; then
 	echo Nothing to ignore
 else
 	echo $@ >> .gitignore
-	git commit .gitignore -m "ignoring '$@'"
+	git add .gitignore
+	git commit -m "ignoring '$@'"
 fi
