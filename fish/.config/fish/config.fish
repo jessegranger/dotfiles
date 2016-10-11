@@ -81,6 +81,7 @@ function fish_prompt --description "Write out a custom prompt"
 	_prompt_pwd
 	_prompt_git
 	printf ' > '
+	printf '\ek\e\\'
 
 end
 
@@ -93,10 +94,16 @@ if test -e (which fish)
 end
 
 function fish_title
+	echo (prompt_pwd)
 end
 
-set TERM xterm-256color
+# set TERM xterm-256color
 
 function sc --wraps screen
 	env TERM=xterm-256color SHELL=(which fish) screen -DR
+end
+
+if [ -n "$SSH_AUTH_SOCK" -a ! -h "$SSH_AUTH_SOCK" ]
+	ln -sf $SSH_AUTH_SOCK ~/.ssh/ssh_auth_sock
+	set SSH_AUTH_SOCK ~/.ssh/ssh_auth_sock
 end
