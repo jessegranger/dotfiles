@@ -100,7 +100,7 @@ end
 # set TERM xterm-256color
 
 function sc --wraps screen
-	env TERM=xterm-256color SHELL=(which fish) screen -DR
+	env SHELL=(which fish) screen -DRR
 end
 
 if [ -n "$SSH_AUTH_SOCK" -a ! -h "$SSH_AUTH_SOCK" ]
