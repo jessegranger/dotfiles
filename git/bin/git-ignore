@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 
-if [ -z "$@" ]; then
+if [ -z "$*" ]; then
 	echo Nothing to ignore
 else
-	echo $@ >> .gitignore
+	for file in $*; do
+		echo $file >> .gitignore
+	done
 	git add .gitignore
-	git commit -m "ignoring '$@'"
+	git commit -m "ignoring '$*'"
 fi
