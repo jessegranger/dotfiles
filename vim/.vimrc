@@ -269,6 +269,8 @@ if executable('coffeetags')
         \ }
 endif
 
+au BufRead,BufNewFile .fishrc set filetype=fish
+
 " Configure the Git Gutter plugin
 let g:gitgutter_enabled = 1
 hi SignColumn ctermbg=NONE guibg=NONE
