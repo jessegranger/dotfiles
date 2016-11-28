@@ -93,6 +93,16 @@ if test -e (which fish)
 	set -g SHELL (which fish)
 end
 
+if test -n "$DISPLAY" -a -e (which setxkbmap)
+	# Remap Caps to Ctrl
+	setxkbmap -option caps:ctrl_modifier
+end
+
+if test -n "$DISPLAY" -a "$HOSTNAME" = "xps13"
+	# Disable the Touchscreen
+	xinput | grep 'ELAN Touchscreen' | grep -Po 'id=\d+' | cut -d= -f2 | xargs xinput disable
+end
+
 function fish_title
 	echo (prompt_pwd)
 end
