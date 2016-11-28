@@ -1,0 +1,3 @@
+#!/bin/sh
+
+echo "Pulling..." && git pull && echo "Pushing..." && git push
