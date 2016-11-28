@@ -13,12 +13,14 @@ color wombat256
 
 " Setting and overrides for wombat256
 if g:colors_name is "wombat256"
-	hi SpecialKey ctermfg=236 ctermbg=NONE
+	hi SpecialKey ctermfg=white ctermbg=NONE
 else
 	" don't disturb these in wombat mode, since it breaks their links
 	hi SpecialChar ctermbg=NONE
 	hi Operator    ctermbg=NONE
 	hi Repeat      ctermbg=NONE guibg=NONE
+  hi Conditional ctermbg=NONE guibg=NONE
+	hi Constant    ctermbg=NONE guibg=NONE
 endif
 
 
@@ -66,7 +68,6 @@ hi SpellRare   ctermbg=NONE guibg=NONE
 hi SpellLocal  ctermbg=NONE guibg=NONE
 hi ColorColumn ctermbg=NONE guibg=NONE
 hi Comment     ctermbg=NONE guibg=NONE
-hi Constant    ctermbg=NONE guibg=NONE
 hi Special     ctermbg=NONE guibg=NONE
 hi Identifier  ctermbg=NONE guibg=NONE
 hi Statement   ctermbg=NONE guibg=NONE
@@ -82,7 +83,6 @@ hi Number      ctermbg=NONE guibg=NONE
 hi Boolean     ctermbg=NONE guibg=NONE
 hi Float       ctermbg=NONE guibg=NONE
 hi Function    ctermbg=NONE guibg=NONE
-hi Conditional ctermbg=NONE guibg=NONE
 hi Label       ctermbg=NONE guibg=NONE
 " force the paren-matching colors to be simple so they don't get confused with the cursor
 hi MatchParen cterm=underline gui=underline ctermbg=NONE ctermfg=white guibg=NONE guifg=white
