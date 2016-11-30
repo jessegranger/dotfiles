@@ -1,7 +1,7 @@
 [user]
 	name = Jesse Granger
 	email = jesse_dailey@fastmail.com
-	signingKey = B045511F
+	signingKey = 91BEAAF9
 [core]
 	excludesFile = ~/.cvsignore
 	askpass = /bin/echo
