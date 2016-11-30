@@ -96,6 +96,9 @@ end
 if test -n "$DISPLAY" -a -e (which setxkbmap)
 	# Remap Caps to Ctrl
 	setxkbmap -option caps:ctrl_modifier
+	if test -e (which gsettings)
+		gsettings set org.gnome.settings-daemon.plugins.keyboard active false
+	end
 end
 
 if test -n "$DISPLAY" -a "$HOSTNAME" = "xps13"
