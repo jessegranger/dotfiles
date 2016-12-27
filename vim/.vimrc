@@ -247,6 +247,8 @@ endif
 au FileType coffee vmap ,p y:!coffee -bce '<C-R>"'<CR>
 " ,e will execute the highlighted code and append it's output
 au FileType coffee vmap ,e y:read !coffee -e 'console.log <C-R>"'<CR>
+" T collapses lines like J but adds ' then' between the join
+au FileType coffee map T A then<Esc>J
 
 au FileType coffee syn match blingOperator /\$/ display
 au FileType coffee hi link blingOperator Constant
