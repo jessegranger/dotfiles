@@ -1,0 +1,27 @@
+
+# vim: ft=make
+
+GCC_VERSION?=master
+GCC_LANGUAGES?=c,c++
+
+gcc: /usr/local/bin/gcc
+
+/usr/local/bin/gcc: /usr/local/stow/gcc-${GCC_VERSION}/bin/gcc
+	cd /usr/local/stow && for i in gcc-*; do stow -D $$i; done
+	cd /usr/local/stow && stow gcc-${GCC_VERSION}
+
+/usr/local/stow/gcc-${GCC_VERSION}/bin/gcc: /src/gcc/gcc
+	cd /src/gcc && make -j 2 install
+	touch $@
+
+/src/gcc/gcc: /src/gcc/config.log
+	cd /src/gcc && make -j 2
+	touch $@
+
+/src/gcc/config.log: /src/gcc/.git/HEAD
+	cd /src/gcc && ./configure --prefix=/usr/local/stow/gcc-${GCC_VERSION} --enable-languages=${GCC_LANGUAGES}
+
+/src/gcc/.git/HEAD:
+	mkdir -p /src
+	cd /src && git clone https://github.com/gcc-mirror/gcc.git
+	cd /src/git && git checkout ${GCC_VERSION}

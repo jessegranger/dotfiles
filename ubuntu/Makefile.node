@@ -1,0 +1,31 @@
+
+# vim: ft=make
+
+NODE_VERSION?=7.0.0
+
+node: /usr/local/bin/node /usr/local/bin/coffee
+
+/usr/local/bin/coffee: /usr/local/bin/node
+	/usr/local/bin/npm install -g coffee-script
+	cd /usr/local/stow && stow -R node-${NODE_VERSION}
+	touch $@
+
+/usr/local/bin/node: /usr/local/stow/node-${NODE_VERSION}/bin/node
+	cd /usr/local/stow && for i in node-*; do stow -D $$i; done
+	cd /usr/local/stow && stow node-${NODE_VERSION}
+
+/usr/local/stow/node-${NODE_VERSION}/bin/node: /src/node/out/Release/node
+	cd /src/node && make -j 2 install
+	touch $@
+
+/src/node/out/Release/node: /src/node/config.mk
+	cd /src/node && make -j 2
+	touch $@
+
+/src/node/config.mk: /src/node/.git/HEAD
+	cd /src/node && ./configure --prefix=/usr/local/stow/node-${NODE_VERSION}
+
+/src/node/.git/HEAD:
+	mkdir -p /src
+	cd /src && git clone https://github.com/nodejs/node.git
+	cd /src && git checkout v${NODE_VERSION}
