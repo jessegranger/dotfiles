@@ -1,4 +1,4 @@
-all: /src node vim git gcc
+all: /src node vim git gcc fish mosh
 
 /src:
 	sudo mkdir -p /src
@@ -9,6 +9,8 @@ include Makefile.node
 include Makefile.vim
 include Makefile.git
 include Makefile.gcc
+include Makefile.fish
+include Makefile.mosh
 
-.PHONY: node vim git gcc
+.PHONY: node vim git gcc fish mosh
 
