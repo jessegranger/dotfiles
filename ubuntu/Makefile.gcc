@@ -7,12 +7,12 @@ GCC_LANGUAGES?=c,c++
 gcc: /usr/local/bin/gcc
 
 /usr/local/bin/gcc: /usr/local/stow/gcc-${GCC_VERSION}/bin/gcc
-	cd /usr/local/stow && for i in gcc-*; do stow -D $$i; done
-	cd /usr/local/stow && stow gcc-${GCC_VERSION}
+	cd /usr/local/stow && for i in gcc-*; do sudo stow -D $$i; done
+	cd /usr/local/stow && sudo stow gcc-${GCC_VERSION}
 
 /usr/local/stow/gcc-${GCC_VERSION}/bin/gcc: /src/gcc/gcc
-	cd /src/gcc && make -j 2 install
-	touch $@
+	cd /src/gcc && sudo make -j 2 install
+	sudo touch $@
 
 /src/gcc/gcc: /src/gcc/config.log
 	cd /src/gcc && make -j 2
