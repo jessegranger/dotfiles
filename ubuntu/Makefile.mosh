@@ -9,11 +9,11 @@ mosh: /usr/local/bin/mosh
 	cd /usr/local/stow && for i in mosh-*; do sudo stow -D $$i; done
 	cd /usr/local/stow && sudo stow mosh-${MOSH_VERSION}
 
-/usr/local/stow/mosh-${MOSH_VERSION}/bin/mosh: /src/mosh/mosh
+/usr/local/stow/mosh-${MOSH_VERSION}/bin/mosh: /src/mosh/scripts/mosh
 	cd /src/mosh && sudo make -j 2 install
 	sudo touch $@
 
-/src/mosh/mosh: /src/mosh/config.status
+/src/mosh/scripts/mosh: /src/mosh/config.status
 	cd /src/mosh && make -j 2
 
 /src/mosh/config.status: /src/mosh/configure
