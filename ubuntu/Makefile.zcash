@@ -1,0 +1,51 @@
+
+# vim: ft=make
+
+ZCASH_VERSION?=v1.0.4
+
+zcash: /usr/local/bin/zcashd /usr/local/bin/zcash-cli ${HOME}/.zcash-params /etc/ld.so.conf.d/lib64.conf
+
+/usr/local/bin/zcashd: /usr/local/stow/zcash-${ZCASH_VERSION}/bin/zcashd
+	cd /usr/local/stow && for i in zcash-*; do sudo stow -D $$i; done
+	cd /usr/local/stow && sudo stow zcash-${ZCASH_VERSION}
+
+/usr/local/bin/zcash-cli: /usr/local/stow/zcash-${ZCASH_VERSION}/bin/zcash-cli
+	cd /usr/local/stow && for i in zcash-*; do sudo stow -D $$i; done
+	cd /usr/local/stow && sudo stow zcash-${ZCASH_VERSION}
+
+/usr/local/stow/zcash-${ZCASH_VERSION}/bin/zcashd: /src/zcash/src/zcashd
+	sudo mkdir -p `dirname $@`
+	sudo cp $< $@
+
+/usr/local/stow/zcash-${ZCASH_VERSION}/bin/zcash-cli: /src/zcash/src/zcash-cli
+	sudo mkdir -p `dirname $@`
+	sudo cp $< $@
+
+/src/zcash/src/zcashd: /src/zcash/.git/HEAD
+	cd /src/zcash && ./zcutil/build.sh -j2
+
+/src/zcash/src/zcash-cli: /src/zcash/.git/HEAD
+	cd /src/zcash && ./zcutil/build.sh -j2
+
+/etc/ld.so.conf.d/lib64.conf:
+	echo "/usr/local/lib64" | sudo tee $@
+	sudo ldconfig
+
+${HOME}/.zcash-params:
+	cd /src/zcash && ./zcutil/fetch-params.sh
+
+${HOME}/.zcash/zcash.conf: ${HOME}/.zcash
+	echo "addnode=mainnet.z.cash"                          > $@
+	echo "rpcuser=username"                               >> $@
+	echo "rpcpassword=`head -c 32 /dev/urandom | base64`" >> $@
+	echo "gen=0"                                          >> $@
+	echo "genproclimit=1"                                 >> $@
+	echo "equihashsolver=tromp"                           >> $@
+
+${HOME}/.zcash:
+	mkdir -p ${HOME}/.zcash
+
+/src/zcash/.git/HEAD:
+	mkdir -p /src
+	cd /src && git clone https://github.com/zcash/zcash.git
+	cd /src/zcash && git checkout ${ZCASH_VERSION}

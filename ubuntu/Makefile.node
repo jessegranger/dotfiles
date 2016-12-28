@@ -1,0 +1,37 @@
+
+# vim: ft=make
+
+NODE_VERSION?=7.0.0
+
+node: /usr/local/bin/node /usr/local/bin/coffee
+
+/usr/local/bin/coffee: /usr/local/bin/node
+	# Installing coffee-script...
+	@sudo /usr/local/bin/npm install -g coffee-script
+	@cd /usr/local/stow && sudo stow -R node-${NODE_VERSION}
+	@sudo touch $@
+
+/usr/local/bin/node: /usr/local/stow/node-${NODE_VERSION}/bin/node
+	# Stowing node...
+	@cd /usr/local/stow && for i in node-*; do sudo stow -D $$i; done
+	@cd /usr/local/stow && sudo stow node-${NODE_VERSION}
+
+/usr/local/stow/node-${NODE_VERSION}/bin/node: /src/node/out/Release/node
+	# Installing node...
+	@cd /src/node && sudo make -j 2 install > /dev/null
+	@sudo touch $@
+
+/src/node/out/Release/node: /src/node/config.mk
+	# Building node...
+	@cd /src/node && make -j 2 > /dev/null
+	@touch $@
+
+/src/node/config.mk: /src/node/.git/HEAD
+	# Configuring node...
+	@cd /src/node && ./configure --prefix=/usr/local/stow/node-${NODE_VERSION} > /dev/null
+
+/src/node/.git/HEAD:
+	# Cloning node source...
+	@mkdir -p /src
+	@cd /src && git clone https://github.com/nodejs/node.git
+	@cd /src/node && git checkout v${NODE_VERSION}

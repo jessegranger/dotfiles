@@ -81,7 +81,11 @@ function fish_prompt --description "Write out a custom prompt"
 	_prompt_pwd
 	_prompt_git
 	printf ' > '
-	printf '\ek\e\\'
+	# if we are in a screen session,
+	# output the special the autotitle escape code
+	if test -n "$WINDOW"
+		printf '\ek\e\\'
+	end
 
 end
 

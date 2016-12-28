@@ -1,0 +1,26 @@
+
+# vim: ft=make
+
+GIT_VERSION?=master
+
+git: /usr/local/bin/git
+
+/usr/local/bin/git: /usr/local/stow/git-${GIT_VERSION}/bin/git
+	cd /usr/local/stow && for i in git-*; do sudo stow -D $$i; done
+	cd /usr/local/stow && sudo stow git-${GIT_VERSION}
+
+/usr/local/stow/git-${GIT_VERSION}/bin/git: /src/git/git
+	cd /src/git && sudo make -j 2 install
+	sudo touch $@
+
+/src/git/git: /src/git/config.log
+	cd /src/git && make -j 2
+	touch $@
+
+/src/git/config.log: /src/git/.git/HEAD
+	cd /src/git && ./configure --prefix=/usr/local/stow/git-${GIT_VERSION}
+
+/src/git/.git/HEAD:
+	mkdir -p /src
+	cd /src && git clone https://github.com/git/git.git
+	cd /src/git && git checkout ${GIT_VERSION}
