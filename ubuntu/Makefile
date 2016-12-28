@@ -1,9 +1,10 @@
-all: packages /src node vim git gcc fish mosh
+all: packages /src node vim git gcc fish mosh libdb zcash
 
 packages:
 	# Checking for bootstrap packages...
 	@sudo apt -qqq install build-essential libboost-all-dev libncurses5-dev ncurses-dev zlib1g-dev \
-		make cmake git autoconf automake protobuf-compiler libutempter-dev
+		make cmake git autoconf automake protobuf-compiler libutempter-dev apt-transport-https \
+		unzip libc6-dev wget bsdmainutils
 
 /src:
 	# Creating /src directory...
@@ -11,11 +12,6 @@ packages:
 	@sudo chmod 775 /src
 	@sudo chown `whoami` /src
 
-include Makefile.node
-include Makefile.vim
-include Makefile.git
-include Makefile.gcc
-include Makefile.fish
-include Makefile.mosh
+include Makefile.*
 
-.PHONY: node vim git gcc fish mosh packages
+.PHONY: node vim git gcc fish mosh packages libdb zcash
