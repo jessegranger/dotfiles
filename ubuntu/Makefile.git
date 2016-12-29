@@ -17,8 +17,12 @@ git: /usr/local/bin/git
 	cd /src/git && make -j 2
 	touch $@
 
-/src/git/config.log: /src/git/.git/HEAD
+/src/git/Makefile: /src/git/configure
 	cd /src/git && ./configure --prefix=/usr/local/stow/git-${GIT_VERSION}
+
+/src/git/configure: /src/git/.git/HEAD
+	cd /src/git && autoreconf
+	touch $@
 
 /src/git/.git/HEAD:
 	mkdir -p /src
