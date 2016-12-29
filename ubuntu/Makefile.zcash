@@ -22,9 +22,11 @@ zcash: /usr/local/bin/zcashd /usr/local/bin/zcash-cli ${HOME}/.zcash-params /etc
 	sudo cp $< $@
 
 /src/zcash/src/zcashd: /src/zcash/.git/HEAD
+	sed -i 's/ -Werror//' /src/zcash/zcutil/build.sh
 	cd /src/zcash && ./zcutil/build.sh -j2
 
 /src/zcash/src/zcash-cli: /src/zcash/.git/HEAD
+	sed -i 's/ -Werror//' /src/zcash/zcutil/build.sh
 	cd /src/zcash && ./zcutil/build.sh -j2
 
 /etc/ld.so.conf.d/lib64.conf:
