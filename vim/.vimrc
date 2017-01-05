@@ -220,6 +220,8 @@ imap [1;5I   <Esc>:tabnext<cr>
 imap <C-S-tab> <Esc>:tabprev<cr>
 imap [1;6I   <Esc>:tabprev<cr>
 
+au FileType text set formatprg=par
+
 " HTML mappings
 au FileType html imap <scr <script type="text/javascript"
 au FileType html imap <sty <style type="text/css"
