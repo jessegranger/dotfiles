@@ -105,11 +105,6 @@ if test -n "$DISPLAY" -a -e (which setxkbmap)
 	end
 end
 
-if test -n "$DISPLAY" -a "$HOSTNAME" = "xps13"
-	# Disable the Touchscreen
-	xinput | grep 'ELAN Touchscreen' | grep -Po 'id=\d+' | cut -d= -f2 | xargs xinput disable
-end
-
 function fish_title
 	echo (prompt_pwd)
 end
