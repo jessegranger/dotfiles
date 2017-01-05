@@ -3,8 +3,6 @@
 
 VIM_VERSION?=master
 
-vim: /usr/local/bin/vim
-
 /usr/local/bin/vim: /usr/local/stow/vim-${VIM_VERSION}/bin/vim
 	cd /usr/local/stow && for i in vim-*; do sudo stow -D $$i; done
 	cd /usr/local/stow && sudo stow vim-${VIM_VERSION}
@@ -13,6 +11,8 @@ vim: /usr/local/bin/vim
 /usr/local/stow/vim-${VIM_VERSION}/bin/vim: /src/vim/src/vim
 	cd /src/vim && sudo make -j 2 install
 	sudo touch $@
+
+vim: /usr/local/bin/vim
 
 /src/vim/src/vim: /src/vim/src/auto/config.cache
 	cd /src/vim && make -j 2

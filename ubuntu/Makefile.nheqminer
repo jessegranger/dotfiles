@@ -13,6 +13,7 @@ nheqminer: /src/nheqminer/Linux_cmake/nheqminer_cpu_xenoncat/nheqminer
 
 /src/nheqminer/Linux_cmake/nheqminer_cpu_xenoncat/nheqminer: /src/nheqminer/cpu_xenoncat/Linux/asm/equihash_avx1.o /src/nheqminer/Linux_cmake/nheqminer_cpu_xenoncat/Makefile
 	cd /src/nheqminer/Linux_cmake/nheqminer_cpu_xenoncat && make
+	touch $@
 
 /src/nheqminer/.git/HEAD:
 	cd /src && git clone -b Linux https://github.com/nicehash/nheqminer

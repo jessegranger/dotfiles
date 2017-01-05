@@ -14,12 +14,12 @@ gcc: /usr/local/bin/gcc
 	cd /src/gcc && sudo make -j 2 install
 	sudo touch $@
 
-/src/gcc/gcc: /src/gcc/config.log
-	cd /src/gcc && make -j 2
+/src/gcc/gcc: /src/gcc/Makefile
+	cd /src/gcc && make -j 4
 	touch $@
 
-/src/gcc/config.log: /src/gcc/.git/HEAD
-	cd /src/gcc && ./configure --prefix=/usr/local/stow/gcc-${GCC_VERSION} --enable-languages=${GCC_LANGUAGES}
+/src/gcc/Makefile: /src/gcc/.git/HEAD
+	cd /src/gcc && ./configure --prefix=/usr/local/stow/gcc-${GCC_VERSION} --enable-languages=${GCC_LANGUAGES} --disable-multilib
 
 /src/gcc/.git/HEAD:
 	mkdir -p /src

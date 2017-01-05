@@ -13,12 +13,13 @@ git: /usr/local/bin/git
 	cd /src/git && sudo make -j 2 install
 	sudo touch $@
 
-/src/git/git: /src/git/config.log
-	cd /src/git && make -j 2
+/src/git/git: /src/git/Makefile
+	cd /src/git && make -j 4
 	touch $@
 
 /src/git/Makefile: /src/git/configure
 	cd /src/git && ./configure --prefix=/usr/local/stow/git-${GIT_VERSION}
+	touch $@
 
 /src/git/configure: /src/git/.git/HEAD
 	cd /src/git && autoreconf
