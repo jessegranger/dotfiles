@@ -1,12 +1,17 @@
-all: packages /src gcc node vim git fish mosh libdb zcash nheqminer cpuminer
+all: packages /src gcc node vim git fish mosh libdb zcash nheqminer cpuminer ansible
+
+PACKAGES=
+
+include Makefile.*
 
 packages:
 	# Checking for bootstrap packages...
-	@[ -e `which apt` ] && sudo apt -qqq install -y build-essential libboost-all-dev libncurses5-dev ncurses-dev zlib1g-dev \
-		make cmake git autoconf automake protobuf-compiler libutempter-dev apt-transport-https \
-		unzip libc6-dev wget bsdmainutils libcurl4-openssl-dev libmpfr-dev libmpc-dev flex bison \
-		libprotoc-dev stow libssl-dev libtool libjansson\* ruby-dev python-dev exfat-fuse exfat-utils \
-		chromium-browser python-qt4 python-pip screen gpp par htop
+	@[ -e `which apt` ] && sudo apt -qqq install -y \
+		build-essential autoconf automake make git \
+		stow wget curl apt-transport-https \
+		exfat-fuse exfat-utils \
+		python-qt4 python-pip \
+		unzip screen gpp par htop ${PACKAGES}
 
 /src:
 	# Creating /src directory...
@@ -14,6 +19,5 @@ packages:
 	@sudo chmod 775 /src
 	@sudo chown `whoami` /src
 
-include Makefile.*
 
-.PHONY: packages node vim git gcc fish mosh libdb zcash nheqminer cpuminer
+.PHONY: packages node vim git gcc fish mosh libdb zcash nheqminer cpuminer ansible

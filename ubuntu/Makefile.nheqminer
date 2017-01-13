@@ -3,18 +3,25 @@
 
 NHEQMINER_VERSION?=Linux
 
+PACKAGES+=cmake libboost-all-dev
+
 nheqminer: /src/nheqminer/Linux_cmake/nheqminer_cpu_xenoncat/nheqminer
 
 /src/nheqminer/cpu_xenoncat/Linux/asm/equihash_avx1.o: /src/nheqminer/.git/HEAD
-	cd /src/nheqminer/cpu_xenoncat/Linux/asm && sh assemble.sh
+	# [nheqminer] assembling...
+	@cd /src/nheqminer/cpu_xenoncat/Linux/asm && sh assemble.sh
 
 /src/nheqminer/Linux_cmake/nheqminer_cpu_xenoncat/Makefile: /src/nheqminer/.git/HEAD
-	cd /src/nheqminer/Linux_cmake/nheqminer_cpu_xenoncat && cmake .
+	# [nheqminer] creating Makefile...
+	@cd /src/nheqminer/Linux_cmake/nheqminer_cpu_xenoncat && cmake .
 
 /src/nheqminer/Linux_cmake/nheqminer_cpu_xenoncat/nheqminer: /src/nheqminer/cpu_xenoncat/Linux/asm/equihash_avx1.o /src/nheqminer/Linux_cmake/nheqminer_cpu_xenoncat/Makefile
-	cd /src/nheqminer/Linux_cmake/nheqminer_cpu_xenoncat && make
-	touch $@
+	# [nheqminer] building...
+	@cd /src/nheqminer/Linux_cmake/nheqminer_cpu_xenoncat && make
+	@touch $@
 
-/src/nheqminer/.git/HEAD:
-	cd /src && git clone -b Linux https://github.com/nicehash/nheqminer
-	cd /src/nheqminer && git checkout ${NHEQMINER_VERSION}
+/src/nheqminer/.git/HEAD: Makefile.nheqminer
+	# [nheqminer] pulling source...
+	@cd /src && [ -d "nheqminer" ] || git clone -b ${NHEQMINER} https://github.com/nicehash/nheqminer
+	@cd /src/nheqminer && git checkout ${NHEQMINER_VERSION} && git pull
+	@touch $@

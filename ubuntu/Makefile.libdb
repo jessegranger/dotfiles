@@ -7,24 +7,30 @@ LIBDB_DIR=/src/libdb/db-${LIBDB_VERSION}
 libdb: /usr/local/lib/libdb_cxx.so
 
 /usr/local/lib/libdb_cxx.so: /usr/local/stow/db-${LIBDB_VERSION}/lib/libdb_cxx.so
-	cd /usr/local/stow && for i in db-*; do sudo stow -D $$i; done
-	cd /usr/local/stow && sudo stow db-${LIBDB_VERSION}
+	# [libdb] stowing...
+	@cd /usr/local/stow && for i in db-*; do sudo stow -D $$i; done
+	@cd /usr/local/stow && sudo stow db-${LIBDB_VERSION}
 
 /usr/local/stow/db-${LIBDB_VERSION}/lib/libdb_cxx.so: ${LIBDB_DIR}/build_unix/db_verify
-	cd ${LIBDB_DIR}/build_unix && sudo make -j 2 install
-	sudo touch $@
+	# [libdb] installing...
+	@cd ${LIBDB_DIR}/build_unix && sudo make -j 2 install
+	@sudo touch $@
 
 ${LIBDB_DIR}/build_unix/db_verify: ${LIBDB_DIR}/build_unix/config.status
-	cd ${LIBDB_DIR}/build_unix && sudo make -j 2
-	sudo touch $@
+	# [libdb] building...
+	@cd ${LIBDB_DIR}/build_unix && sudo make -j 2
+	@sudo touch $@
 
 ${LIBDB_DIR}/build_unix/config.status: ${LIBDB_DIR}/dist/configure
-	cd ${LIBDB_DIR}/build_unix && ../dist/configure --prefix=/usr/local/stow/db-${LIBDB_VERSION} --enable-compat185 --enable-dbm --disable-static --enable-cxx
+	# [libdb] configuring...
+	@cd ${LIBDB_DIR}/build_unix && ../dist/configure --prefix=/usr/local/stow/db-${LIBDB_VERSION} --enable-compat185 --enable-dbm --disable-static --enable-cxx
 
 ${LIBDB_DIR}/dist/configure: ${LIBDB_DIR}.tar.gz
-	cd /src/libdb && tar xzvf db-${LIBDB_VERSION}.tar.gz
-	touch $@
+	# [libdb] unpacking source...
+	@cd /src/libdb && tar xzvf db-${LIBDB_VERSION}.tar.gz
+	@touch $@
 
 ${LIBDB_DIR}.tar.gz:
-	mkdir -p /src/libdb
-	cd /src/libdb && wget -q http://download.oracle.com/berkeley-db/db-${LIBDB_VERSION}.tar.gz
+	# [libdb] fetching source...
+	@mkdir -p /src/libdb
+	@cd /src/libdb && wget -q http://download.oracle.com/berkeley-db/db-${LIBDB_VERSION}.tar.gz

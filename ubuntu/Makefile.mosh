@@ -3,27 +3,35 @@
 
 MOSH_VERSION?=master
 
+PACKAGES+=protobuf-compiler libprotoc-dev libssl-dev libncurses5-dev ncurses-dev libutempter-dev
+
 mosh: /usr/local/bin/mosh
 
 /usr/local/bin/mosh: /usr/local/stow/mosh-${MOSH_VERSION}/bin/mosh
-	cd /usr/local/stow && for i in mosh-*; do sudo stow -D $$i; done
-	cd /usr/local/stow && sudo stow mosh-${MOSH_VERSION}
+	# [mosh] stowing...
+	@cd /usr/local/stow && for i in mosh-*; do sudo stow -D $$i; done
+	@cd /usr/local/stow && sudo stow mosh-${MOSH_VERSION}
 
 /usr/local/stow/mosh-${MOSH_VERSION}/bin/mosh: /src/mosh/scripts/mosh
-	cd /src/mosh && sudo make -j 2 install
-	sudo touch $@
+	# [mosh] installing...
+	@cd /src/mosh && sudo make -j 2 install > /dev/null
+	@sudo touch $@
 
 /src/mosh/scripts/mosh: /src/mosh/config.status
-	cd /src/mosh && make -j 2
+	# [mosh] compiling...
+	@cd /src/mosh && make -j 2 > /dev/null
 
 /src/mosh/config.status: /src/mosh/configure
-	cd /src/mosh && ./configure --prefix=/usr/local/stow/mosh-${MOSH_VERSION} --enable-compiler-warnings=error
+	# [mosh] configuring...
+	@cd /src/mosh && ./configure --prefix=/usr/local/stow/mosh-${MOSH_VERSION} --enable-compiler-warnings=error
 
 /src/mosh/configure: /src/mosh/.git/HEAD
-	cd /src/mosh && ./autogen.sh
+	# [mosh] creating configure...
+	@cd /src/mosh && ./autogen.sh
 
-/src/mosh/.git/HEAD:
-	mkdir -p /src
-	cd /src && git clone https://github.com/mobile-shell/mosh.git mosh
-	cd /src/mosh && git checkout ${MOSH_VERSION}
-	
+/src/mosh/.git/HEAD: Makefile.mosh
+	# [mosh] pulling source...
+	@mkdir -p /src
+	@cd /src && [ -d "mosh" ] || git clone https://github.com/mobile-shell/mosh.git mosh
+	@cd /src/mosh && git checkout ${MOSH_VERSION} && git pull
+	@touch $@

@@ -3,29 +3,38 @@
 
 GIT_VERSION?=master
 
+PACKAGES+=zlib1g-dev ssh perl openssl libssl-dev libcurl4-openssl-dev libexpat-dev wish gettext python
+
 git: /usr/local/bin/git
 
 /usr/local/bin/git: /usr/local/stow/git-${GIT_VERSION}/bin/git
-	cd /usr/local/stow && for i in git-*; do sudo stow -D $$i; done
-	cd /usr/local/stow && sudo stow git-${GIT_VERSION}
+	# [git] stowing...
+	@cd /usr/local/stow && for i in git-*; do sudo stow -D $$i; done
+	@cd /usr/local/stow && sudo stow git-${GIT_VERSION}
 
 /usr/local/stow/git-${GIT_VERSION}/bin/git: /src/git/git
-	cd /src/git && sudo make -j 2 install
-	sudo touch $@
+	# [git] installing...
+	@cd /src/git && sudo make -j 2 install > /dev/null
+	@sudo touch $@
 
 /src/git/git: /src/git/Makefile
-	cd /src/git && make -j 4
-	touch $@
+	# [git] building...
+	@cd /src/git && make -j 4 > /dev/null
+	@touch $@
 
 /src/git/Makefile: /src/git/configure
-	cd /src/git && ./configure --prefix=/usr/local/stow/git-${GIT_VERSION}
-	touch $@
+	# [git] configuring...
+	@cd /src/git && ./configure --prefix=/usr/local/stow/git-${GIT_VERSION} > /dev/null
+	@touch $@
 
 /src/git/configure: /src/git/.git/HEAD
-	cd /src/git && autoreconf
-	touch $@
+	# [git] creating configure...
+	@cd /src/git && autoreconf > /dev/null
+	@touch $@
 
-/src/git/.git/HEAD:
-	mkdir -p /src
-	cd /src && git clone https://github.com/git/git.git
-	cd /src/git && git checkout ${GIT_VERSION}
+/src/git/.git/HEAD: Makefile.git
+	# [git] pulling source...
+	@mkdir -p /src
+	@cd /src && [ -d "git" ] || git clone https://github.com/git/git.git
+	@cd /src/git && git checkout ${GIT_VERSION} && git pull > /dev/null
+	@touch $@

@@ -1,7 +1,9 @@
 
 # vim: ft=make
 
-NODE_VERSION?=7.0.0
+NODE_VERSION?=5.12.0
+
+PACKAGES+=python make
 
 node: /usr/local/bin/node /usr/local/bin/coffee
 
@@ -30,8 +32,9 @@ node: /usr/local/bin/node /usr/local/bin/coffee
 	# Configuring node...
 	@cd /src/node && ./configure --prefix=/usr/local/stow/node-${NODE_VERSION} > /dev/null
 
-/src/node/.git/HEAD:
+/src/node/.git/HEAD: Makefile.node
 	# Cloning node source...
 	@mkdir -p /src
-	@cd /src && git clone https://github.com/nodejs/node.git
+	@cd /src && [ -d "node" ] || git clone https://github.com/nodejs/node.git
 	@cd /src/node && git checkout v${NODE_VERSION}
+	@touch $@
