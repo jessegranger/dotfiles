@@ -1,0 +1,27 @@
+
+CPUMINER_VERSION?=linux
+
+PACKAGES+=libcurl4-openssl-dev libncurses5-dev pkg-config automake yasm
+
+cpuminer: /src/cpuminer/cpuminer
+
+/src/cpuminer/cpuminer: /src/cpuminer/Makefile
+	# [cpuminer] building...
+	@cd /src/cpuminer && make -j 4 > /dev/null
+	@touch $@
+
+/src/cpuminer/Makefile: /src/cpuminer/configure
+	# [cpuminer] configuring...
+	@cd /src/cpuminer && ./configure CFLAGS="-march=native" --with-crypto --with-curl > /dev/null
+
+/src/cpuminer/configure: /src/cpuminer/.git/HEAD
+	# [cpuminer] creating configure...
+	@cd /src/cpuminer && ./autogen.sh > /dev/null
+	@touch $@
+
+/src/cpuminer/.git/HEAD: Makefile.cpuminer
+	# [cpuminer] pulling source...
+	@cd /src && [ -d "cpuminer" ] || git clone --recursive https://github.com/tpruvot/cpuminer-multi.git cpuminer
+	@cd /src/cpuminer && git checkout ${CPUMINER_VERSION} && git pull > /dev/null
+	@touch $@
+

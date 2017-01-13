@@ -1,0 +1,23 @@
+
+# vim: ft=make
+
+ANSIBLE_VERSION?=devel
+
+ansible: /usr/local/bin/ansible
+
+/usr/local/bin/ansible: /src/ansible/build/lib.linux-x86_64-2.7/ansible/__init__.py
+	# [ansible] installing...
+	@cd /src/ansible && sudo python setup.py install > /dev/null
+	@sudo touch $@
+
+/src/ansible/build/lib.linux-x86_64-2.7/ansible/__init__.py: /src/ansible/.git/HEAD
+	# [ansible] building...
+	@cd /src/ansible && python setup.py clean -a && python setup.py build > /dev/null
+	@touch $@
+
+/src/ansible/.git/HEAD: Makefile.ansible
+	# [ansible] pulling source...
+	@mkdir -p /src
+	@cd /src && [ -d "ansible" ] || git clone https://github.com/ansible/ansible.git
+	@cd /src/ansible && git checkout ${ANSIBLE_VERSION} && git pull
+	@touch $@
