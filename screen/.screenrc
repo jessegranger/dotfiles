@@ -1,4 +1,5 @@
 term "screen-256color"
+shell "/usr/local/bin/fish"
 
 encoding UTF-8
 
