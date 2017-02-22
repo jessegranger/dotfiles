@@ -97,14 +97,6 @@ if test -e (which fish)
 	set -g SHELL (which fish)
 end
 
-if test -n "$DISPLAY" -a -e (which setxkbmap)
-	# Remap Caps to Ctrl
-	setxkbmap -option caps:ctrl_modifier
-	if test -e (which gsettings)
-		gsettings set org.gnome.settings-daemon.plugins.keyboard active false
-	end
-end
-
 function fish_title
 	echo (prompt_pwd)
 end
