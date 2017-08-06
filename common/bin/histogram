@@ -1,0 +1,14 @@
+#!/usr/bin/env coffee
+
+$ = require '/usr/local/lib/node_modules/bling'
+
+bucketSize = try parseInt(process.argv.pop()) catch err then 10
+
+lines = ""
+process.stdin.on 'data', (chunk) =>
+	lines += String(chunk)
+
+process.stdin.on 'end', =>
+	data = $(lines.split '\n').slice(0,-1).map(parseInt)
+	process.stdout.write $.histogram(data, bucketSize)
+
