@@ -6,6 +6,9 @@ case $1 in
 
 list)
 	for file in ${RING}/*.pub; do
+		if [ "`cat ${HOME}/.ssh/id_rsa.pub`" == "`cat $file`" ]; then
+			echo -n "*"
+		fi
 		ssh-keygen -lf $file -E md5
 	done
 ;;
