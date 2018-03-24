@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+
+CMD=$1
+if [ "$CMD" = "init" ]; then
+	if [ -e ".todo" ]; then
+		echo ".todo Already exists."
+		exit 1
+	fi
+	touch ".todo"
+	echo ".todo Created."
+	exit 0
+fi
+shift
+
+while [ "$(pwd)" != "/" -a ! -e ".todo" ]; do
+	cd ..
+done
+
+if [ ! -e ".todo" ]; then
+	echo Not found, please run \'todo init\' in your project root.
+	exit 1
+fi
+
+get_last_id() {
+	LAST=$( tail -1 .todo | awk -F. '{print $1}' )
+	if [ -z "$LAST" ]; then
+		LAST=0
+	fi
+	echo -n $LAST
+}
+get_active_count() {
+	echo -n $(wc -l ".todo" | awk '{print $1}')
+}
+finish_item() {
+	ID=$1
+	cat .todo | grep -v "^$ID\." > /tmp/$$.todo; mv /tmp/$$.todo .todo
+}
+
+case "$CMD" in
+"add"|"new")
+	LAST_ID=$(get_last_id)
+	(( ID=LAST_ID + 1 ))
+	echo $ID. "$*" >> .todo
+;;
+"rm"|"end"|"done")
+	finish_item $1
+;;
+*)
+	cat .todo
+	echo ------
+;;
+esac
+echo $(get_active_count) items to do
+
