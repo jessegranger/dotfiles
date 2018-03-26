@@ -2,6 +2,7 @@
 # vim: ft=make
 
 NHEQMINER_VERSION?=Linux
+NHEQMINER=/src/nheqminer
 
 PACKAGES+=cmake libboost-all-dev
 
@@ -22,6 +23,6 @@ nheqminer: /src/nheqminer/Linux_cmake/nheqminer_cpu_xenoncat/nheqminer
 
 /src/nheqminer/.git/HEAD: Makefile.nheqminer
 	# [nheqminer] pulling source...
-	@cd /src && [ -d "nheqminer" ] || git clone -b ${NHEQMINER} https://github.com/nicehash/nheqminer
+	@cd /src && [ -d "nheqminer" ] || git clone -b Linux https://github.com/nicehash/nheqminer
 	@cd /src/nheqminer && git checkout ${NHEQMINER_VERSION} && git pull
 	@touch $@
