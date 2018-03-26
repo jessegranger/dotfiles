@@ -19,6 +19,10 @@ function line
 	head -$argv | tail -1
 end
 
+function lines
+	head -$2 | head -(expr $2 - $1)
+end
+
 function goo
 	googler -j $argv
 end
@@ -111,3 +115,4 @@ if [ -n "$SSH_AUTH_SOCK" -a ! -h "$SSH_AUTH_SOCK" ]
 	ln -sf $SSH_AUTH_SOCK ~/.ssh/ssh_auth_sock
 	set SSH_AUTH_SOCK ~/.ssh/ssh_auth_sock
 end
+
