@@ -1,7 +1,7 @@
 
 # vim: ft=make
 
-NODE_VERSION?=5.12.0
+NODE_VERSION?=9.9.0
 
 PACKAGES+=python make
 
@@ -9,7 +9,7 @@ node: /usr/local/bin/node /usr/local/bin/coffee
 
 /usr/local/bin/coffee: /usr/local/bin/node
 	# Installing coffee-script...
-	@sudo /usr/local/bin/npm install -g coffee-script
+	@sudo /usr/local/bin/npm install -g coffeescript
 	@cd /usr/local/stow && sudo stow -R node-${NODE_VERSION}
 	@sudo touch $@
 
