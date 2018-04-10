@@ -89,6 +89,7 @@ function fish_prompt --description "Write out a custom prompt"
 	# output the special the autotitle escape code
 	if test -n "$WINDOW"
 		printf '\ek\e\\'
+		printf '\ek'(prompt_pwd)'\e\\'
 	end
 
 end
