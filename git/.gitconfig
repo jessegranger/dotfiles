@@ -1,7 +1,6 @@
 [user]
 	name = Jesse Granger
 	email = jesse_granger@fastmail.com
-	signingKey = 91BEAAF9
 [core]
 	excludesFile = ~/.cvsignore
 	askpass = /bin/echo
@@ -22,7 +21,3 @@
 	default = matching
 [color]
 	ui = true
-[commit]
-	gpgsign = true
-[gpg]
-	program = /usr/local/bin/gpg1
