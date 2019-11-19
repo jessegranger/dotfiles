@@ -1,0 +1,22 @@
+
+set -g default-terminal "screen-256color"
+set -g prefix C-a
+
+unbind C-b
+
+bind a send-prefix
+bind C-a last-window
+
+bind | split-window -h
+bind - split-window -v
+
+bind Left select-pane -L
+bind Down select-pane -D
+bind Up select-pane -U
+bind Right select-pane -R
+
+bind -r C-h select-window -t :-
+bind -r C-l select-window -t :+
+
+bind r source-file ~/.tmuxrc
+
