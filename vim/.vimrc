@@ -25,8 +25,8 @@ endif
 
 
 " yellow/white on blue status line
-hi StatusLine ctermbg=darkblue ctermfg=yellow
-hi StatusLineNC ctermbg=darkblue ctermfg=white
+hi StatusLine ctermbg=NONE ctermfg=yellow cterm=underline
+hi StatusLineNC ctermbg=NONE ctermfg=white cterm=underline
 
 " Setting and override for maroloccio (purple and dark)
 if g:colors_name is "maroloccio"
