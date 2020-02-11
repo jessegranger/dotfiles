@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+if [ -e ".env" ]; then
+	env `cat .env | perl -e 'while(<>) { chomp($_); print($_." "); }'` $@
+else
+	$@
+fi
