@@ -67,10 +67,10 @@ function _prompt_git
 end
 
 function _prompt_screen
-	if not set -q __fish_prompt_screen
-		set -g __fish_prompt_screen (set_color cyan)
-	end
 	if test -n "$WINDOW"
+		if not set -q __fish_prompt_screen
+			set -g __fish_prompt_screen (set_color cyan)
+		end
 		printf $__fish_prompt_screen
 		printf ':%s' $WINDOW
 		set_color normal
