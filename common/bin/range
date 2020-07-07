@@ -1,30 +1,40 @@
 #!/usr/bin/env bash
 
-I=$1
-J=$2
+START=$1
+END=$2
 if [ -z "$3" ]; then
-	K=1
+	STEP=1
 else
-	K=$3
+	STEP=$3
 fi
 SPACE=
 
-if [ "$I" -lt "$J" ]; then
-	if [ "$K" -lt "1" ]; then
-		K=$(expr $K \* -1)
+if [ "$START" -lt "$END" ]; then
+	if [ "$STEP" == "0" ]; then
+		echo "Invalid step: $STEP"
+		exit 1
 	fi
-	while [ "$I" -lt "$J" ]; do
-		echo -n "${SPACE}${I}"
-		I=$(expr $I + $K)
+	if [ "$STEP" -lt "1" ]; then
+		STEP=$(expr $STEP \* -1)
+	fi
+	while [ "$START" -lt "$END" ]; do
+		if [ "$START" -lt "10" ]; then
+			SPACE="${SPACE}0"
+		fi
+		echo -n "${SPACE}${START}"
+		START=$(expr $START + $STEP)
 		SPACE=" "
 	done
-elif [ "$I" -gt "$J" ]; then
-	if [ "$K" -gt "-1" ]; then
-		K=$(expr $K \* -1)
+elif [ "$START" -gt "$END" ]; then
+	if [ "$STEP" -gt "-1" ]; then
+		STEP=$(expr $STEP \* -1)
 	fi
-	while [ "$I" -gt "$J" ]; do
-		echo -n "${SPACE}${I}"
-		I=$(expr $I + $K)
+	while [ "$START" -gt "$END" ]; do
+		if [ "$START" -lt "10" ]; then
+			SPACE="${SPACE}0"
+		fi
+		echo -n "${SPACE}${START}"
+		START=$(expr $START + $STEP)
 		SPACE=" "
 	done
 fi
