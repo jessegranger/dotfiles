@@ -77,36 +77,42 @@ function _prompt_screen
 	end
 end
 
-function fish_prompt --description "Write out a custom prompt"
-
-	_prompt_user
-	_prompt_host
-	_prompt_screen
-	_prompt_pwd
-	_prompt_git
-	printf ' > '
+function _prompt_autotitle
 	# if we are in a screen session,
 	# output the special the autotitle escape code
 	if test -n "$WINDOW"
 		printf '\ek\e\\'
 		printf '\ek'(prompt_pwd)'\e\\'
 	end
+end
+
+function fish_prompt --description "Write out a custom prompt"
+
+	_prompt_autotitle
+	_prompt_user
+	_prompt_host
+	_prompt_screen
+	_prompt_pwd
+	_prompt_git
+	printf ' > '
 
 end
 
 if test -e /usr/libexec/java_home
-	set -g JAVA_HOME (/usr/libexec/java_home)
+	set -gx JAVA_HOME (/usr/libexec/java_home)
+end
+
+if test -e /usr/lib/node_modules
+	set -gx NODE_PATH /usr/lib/node_modules
 end
 
 if test -e (which fish)
-	set -g SHELL (which fish)
+	set -gx SHELL (which fish)
 end
 
 function fish_title
 	echo (prompt_pwd)
 end
-
-# set TERM xterm-256color
 
 function sc --wraps screen
 	env SHELL=(which fish) screen -DRR
