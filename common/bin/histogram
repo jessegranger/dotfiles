@@ -1,6 +1,6 @@
 #!/usr/bin/env coffee
 
-$ = require '/usr/local/lib/node_modules/bling'
+$ = require 'bling'
 
 bucketSize = try parseInt(process.argv.pop()) catch err then 10
 
