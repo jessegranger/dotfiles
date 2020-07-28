@@ -86,6 +86,12 @@ function _prompt_autotitle
 	end
 end
 
+function _prompt_todo
+	if test -e ".todo"
+		echo -n (todo prompt)
+	end
+end
+
 function fish_prompt --description "Write out a custom prompt"
 
 	_prompt_autotitle
@@ -94,6 +100,7 @@ function fish_prompt --description "Write out a custom prompt"
 	_prompt_screen
 	_prompt_pwd
 	_prompt_git
+	_prompt_todo
 	printf ' > '
 
 end
