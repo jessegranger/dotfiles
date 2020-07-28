@@ -9,6 +9,16 @@ if [ "$CMD" = "init" ]; then
 	touch ".todo"
 	echo ".todo Created."
 	exit 0
+elif [ "$CMD" = "prompt" ]; then
+	if [ -e ".todo" ]; then
+		N=$(wc -l .todo | cut -d ' ' -f 1)
+		if [ "$N" -gt 1 ]; then
+			echo " ($N todos)"
+		elif [ "$N" -gt 0 ]; then
+			echo " ($N todo)"
+		fi
+	fi
+	exit 0
 fi
 shift
 
