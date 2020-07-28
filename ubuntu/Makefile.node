@@ -1,7 +1,7 @@
 
 # vim: ft=make
 
-NODE_VERSION?=9.9.0
+NODE_VERSION?=14.5.0
 
 PACKAGES+=python make
 
@@ -20,12 +20,12 @@ node: /usr/local/bin/node /usr/local/bin/coffee
 
 /usr/local/stow/node-${NODE_VERSION}/bin/node: /src/node/out/Release/node
 	# Installing node...
-	@cd /src/node && sudo make -j 2 install > /dev/null
+	@cd /src/node && sudo make -j 12 install > /dev/null
 	@sudo touch $@
 
 /src/node/out/Release/node: /src/node/config.mk
 	# Building node...
-	@cd /src/node && make -j 2 > /dev/null
+	@cd /src/node && make -j 12 > /dev/null
 	@touch $@
 
 /src/node/config.mk: /src/node/.git/HEAD
