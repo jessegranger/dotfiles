@@ -1,6 +1,6 @@
 
 function gst --wraps git
-	git status --short $argv
+	git status --short -b $argv
 end
 
 function gco --wraps git
@@ -31,6 +31,26 @@ function dc --wraps docker-compose
 	docker-compose $argv
 end
 
+function midtruncate -a maxlen value
+	set len (string length $value)
+	if test "$len" -gt 19
+		set prefix (math $maxlen / 2)
+		set suffix (math $maxlen - $prefix)
+		echo (string sub -s 1 -l $prefix $value)...(string sub -s -$suffix $value)
+	else
+		echo $value
+	end
+end
+
+function _prompt_date
+	if not set -q __fish_prompt_date
+		set -g __fish_prompt_date (set_color white)
+	end
+	printf $__fish_prompt_date
+	printf '%s | ' (date "+%m/%d %H:%M")
+	set_color normal
+end
+
 function _prompt_user
 	set_color yellow
 	printf '%s' $USER
@@ -41,7 +61,7 @@ function _prompt_host
 	if not set -q __fish_prompt_hostname
 		set -g __fish_prompt_hostname (hostname|cut -d . -f 1)
 	end
-	printf ' at '
+	printf '@'
 	set_color magenta
 	printf $__fish_prompt_hostname
 	set_color normal
@@ -51,8 +71,8 @@ function _prompt_pwd
 	if not set -q __fish_prompt_cwd
 		set -g __fish_prompt_cwd (set_color green)
 	end
-	printf ' in '
-	set_color green
+	printf ' '
+	printf $__fish_prompt_cwd
 	printf '%s' (prompt_pwd)
 	set_color normal
 end
@@ -60,8 +80,7 @@ end
 function _prompt_git
 	set -l git_prompt (__fish_git_prompt)
 	if test -n "$git_prompt"
-		printf ' on'
-		printf "$git_prompt"
+		printf (midtruncate "20" "$git_prompt")
 	end
 	set_color normal
 end
@@ -95,6 +114,7 @@ end
 function fish_prompt --description "Write out a custom prompt"
 
 	_prompt_autotitle
+	_prompt_date
 	_prompt_user
 	_prompt_host
 	_prompt_screen
