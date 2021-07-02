@@ -8,6 +8,7 @@
 	editor = /usr/local/bin/vim
 [advice]
 	statusuoption = false
+	pushUpdateRejected = false
 [alias]
 	lg = log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit
 	branches = branch -a
@@ -21,3 +22,5 @@
 	default = matching
 [color]
 	ui = true
+[pull]
+	rebase = false
