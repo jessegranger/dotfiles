@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+INPUT=$1
+if [ -z "$1" ]; then
+	echo "Input filename required."
+	exit 1
+fi
+
+openssl enc -aes-256-cbc -salt -d -in "$INPUT" -out - -pbkdf2
+
