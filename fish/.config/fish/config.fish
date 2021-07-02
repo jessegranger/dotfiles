@@ -7,8 +7,8 @@ function gco --wraps git
 	git checkout $argv
 end
 
-function lsa --wraps ls
-	ls -hal $argv
+function la --wraps=ls --description 'List contents of directory, including hidden files in directory using long format'
+    ls -lAh $argv
 end
 
 function vi --wraps vim
@@ -150,3 +150,4 @@ if [ -n "$SSH_AUTH_SOCK" -a ! -h "$SSH_AUTH_SOCK" ]
 	set SSH_AUTH_SOCK ~/.ssh/ssh_auth_sock
 end
 
+set PW_FILE ~/Documents/9BLgwhVF.csv.enc
