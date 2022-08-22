@@ -7,4 +7,4 @@ if [ ! -f "$PW_FILE" ]; then
 fi
 
 
-./decrypt $PW_FILE | grep $*
+decrypt $PW_FILE | grep $*
