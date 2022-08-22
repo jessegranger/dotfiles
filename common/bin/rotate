@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+set -eou pipefail
+
+ARG_verbose='false'
+ARG_truncate='false'
+ARG_compress='false'
+ARG_remove='false'
+ARG_max='10'
+while [[ "$1" =~ ^--([a-z]+)=*([0-9]+)* ]]; do
+	eval "ARG_${BASH_REMATCH[1]}=${BASH_REMATCH[2]:='true'}"
+	shift
+done
+
+if [ "$ARG_verbose" = "true" ]; then
+	echo "ARG_truncate=$ARG_truncate"
+	echo "ARG_compress=$ARG_compress"
+	echo "ARG_max=$ARG_max"
+fi
+
+SOURCE="$1"
+if [ -f "$SOURCE" ]; then
+	if [ "$ARG_compress" = "true" ]; then
+		echo "Using compression"
+		TARGET="$SOURCE.gz"
+	else
+		TARGET="$SOURCE"
+	fi
+	echo "Rotating source: $SOURCE"
+	# find the highest already rotated
+	MAX_TARGET=`ls $TARGET* 2> /dev/null | tail -1`
+	# for each existing rotated, increment-move it
+	if [[ "$MAX_TARGET" =~ \.([0-9]+)$ ]]; then
+		INDEX="${BASH_REMATCH[1]}" # we will make this count down from the last file
+		INC=`expr $INDEX + 1` # for each file we vist, we will move it "up" one, to an incremented neighbor slot, named INC
+		INDEX_LIMIT=`expr $ARG_max - 1`
+		while [ "$INDEX" -gt "$INDEX_LIMIT" ]; do
+			echo "Removing item $TARGET.$INDEX (beyond limit of $ARG_max)"
+			rm -i "$TARGET.$INDEX"
+			INC="$INDEX"
+			INDEX=`expr $INDEX - 1`
+		done
+		while [ "$INDEX" -gt "0" ]; do
+			echo "Rotating $TARGET.$INDEX to $TARGET.$INC"
+			cp "$TARGET.$INDEX" "$TARGET.$INC"
+			INC="$INDEX"
+			INDEX=`expr $INDEX - 1`
+		done
+	fi
+	# move SOURCE to SOURCE.1
+	echo "Moving $SOURCE to $TARGET.1"
+	if [ $ARG_compress = "true" ]; then
+		echo "Compressing $SOURCE into $TARGET.1"
+		gzip -c -v9 "$SOURCE" > "$TARGET.1"
+	else
+		echo "Copying $SOURCE to $TARGET.1"
+		cp "$SOURCE" "$TARGET.1"
+	fi
+	if [ $ARG_truncate = "true" ]; then
+		echo "Truncating $SOURCE"
+		echo > "$SOURCE"
+	elif [ $ARG_remove = "true" ]; then
+		echo "Removing $SOURCE"
+		rm "$SOURCE"
+	else
+		echo "Leaving $SOURCE in-place"
+	fi
+else
+	echo "Invalid source file: $SOURCE"
+	exit 1
+fi
+
