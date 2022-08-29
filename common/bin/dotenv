@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+if [ "$1" = "-h" ]; then
+	echo "Runs a command line (in bash) with the contents of a .env file loaded into the environment."
+	exit 0
+fi
+
 if [ -e ".env" ]; then
 	env `cat .env | perl -e 'while(<>) { chomp($_); print($_." "); }'` $@
 else

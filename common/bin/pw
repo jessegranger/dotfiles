@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+
+if [ ! -f "$PW_FILE" ]; then
+	echo Specified input file: \$PW_FILE, was not found.
+	exit 1
+fi
+
+
+decrypt $PW_FILE | grep $*
