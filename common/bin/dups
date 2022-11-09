@@ -1,0 +1,13 @@
+#!/usr/bin/env perl
+
+
+$prev_line = null;
+
+while( $next_line = <> ) {
+	if( $prev_line eq $next_line ) {
+		print($next_line);
+	}
+	$prev_line = $next_line;
+}
+
+
