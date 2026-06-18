@@ -23,6 +23,17 @@ clip_cmd() {
 	fi
 }
 
+# Send the given password to the clipboard via the platform-appropriate tool.
+copy_to_clipboard() {
+	cmd=$(clip_cmd)
+	if [ -n "$cmd" ]; then
+		printf '%s' "$1" | $cmd
+		echo "(password copied to clipboard)"
+	else
+		echo "(no clipboard tool found; password not copied)" >&2
+	fi
+}
+
 matches=$(decrypt "$PW_FILE" | grep $*)
 
 if [ -z "$matches" ]; then
@@ -30,16 +41,31 @@ if [ -z "$matches" ]; then
 	exit 0
 fi
 
-# Print matches with the password (3rd comma-delimited field) masked to X's.
-echo "$matches" | awk -F, 'BEGIN { OFS = "," } { gsub(/./, "X", $3); print }'
+count=$(echo "$matches" | wc -l | tr -d ' ')
 
-# Copy the real password (3rd field of the first match) to the clipboard.
-password=$(echo "$matches" | head -n 1 | awk -F, '{ print $3 }')
-cmd=$(clip_cmd)
-
-if [ -n "$cmd" ]; then
-	printf '%s' "$password" | $cmd
-	echo "(password copied to clipboard)"
+if [ "$count" -eq 1 ]; then
+	# Single match: print it with the password (3rd field) masked, then copy.
+	echo "$matches" | awk -F, 'BEGIN { OFS = "," } { gsub(/./, "X", $3); print }'
+	password=$(echo "$matches" | awk -F, '{ print $3 }')
+	copy_to_clipboard "$password"
 else
-	echo "(no clipboard tool found; password not copied)" >&2
+	# Multiple matches: show a numbered list with passwords masked, then ask.
+	echo "$matches" | awk -F, 'BEGIN { OFS = "," } { gsub(/./, "X", $3); printf "%d) %s\n", NR, $0 }'
+	printf "Select an entry [1-%s]: " "$count"
+	read -r choice
+
+	case "$choice" in
+		'' | *[!0-9]*)
+			echo "Invalid selection." >&2
+			exit 1
+			;;
+	esac
+
+	if [ "$choice" -lt 1 ] || [ "$choice" -gt "$count" ]; then
+		echo "Selection out of range." >&2
+		exit 1
+	fi
+
+	password=$(echo "$matches" | awk -F, -v n="$choice" 'NR == n { print $3 }')
+	copy_to_clipboard "$password"
 fi
