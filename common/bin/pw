@@ -1,10 +1,45 @@
 #!/usr/bin/env bash
 
-
 if [ ! -f "$PW_FILE" ]; then
-	echo Specified input file: \$PW_FILE, was not found.
+	echo Specified input file: \"$PW_FILE\", was not found.
 	exit 1
 fi
 
+# Pick the platform-appropriate clipboard command.
+#   macOS:           pbcopy
+#   Linux (Wayland): wl-copy
+#   Linux (X11):     xclip or xsel
+clip_cmd() {
+	if command -v pbcopy >/dev/null 2>&1; then
+		echo "pbcopy"
+	elif command -v wl-copy >/dev/null 2>&1; then
+		echo "wl-copy"
+	elif command -v xclip >/dev/null 2>&1; then
+		echo "xclip -selection clipboard"
+	elif command -v xsel >/dev/null 2>&1; then
+		echo "xsel --clipboard --input"
+	else
+		return 1
+	fi
+}
 
-decrypt $PW_FILE | grep $*
+matches=$(decrypt "$PW_FILE" | grep $*)
+
+if [ -z "$matches" ]; then
+	echo No matches
+	exit 0
+fi
+
+# Print matches with the password (3rd comma-delimited field) masked to X's.
+echo "$matches" | awk -F, 'BEGIN { OFS = "," } { gsub(/./, "X", $3); print }'
+
+# Copy the real password (3rd field of the first match) to the clipboard.
+password=$(echo "$matches" | head -n 1 | awk -F, '{ print $3 }')
+cmd=$(clip_cmd)
+
+if [ -n "$cmd" ]; then
+	printf '%s' "$password" | $cmd
+	echo "(password copied to clipboard)"
+else
+	echo "(no clipboard tool found; password not copied)" >&2
+fi
