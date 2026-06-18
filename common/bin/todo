@@ -11,7 +11,7 @@ if [ "$CMD" = "init" ]; then
 	exit 0
 elif [ "$CMD" = "prompt" ]; then
 	if [ -e ".todo" ]; then
-		N=$(wc -l .todo | cut -d ' ' -f 1)
+		N=$(wc -l .todo | awk '{print $1}')
 		if [ "$N" -gt 1 ]; then
 			echo " ($N todos)"
 		elif [ "$N" -gt 0 ]; then
