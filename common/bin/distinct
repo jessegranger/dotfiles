@@ -1,0 +1,25 @@
+#!/usr/bin/env coffee
+Readline = require 'readline'
+die = (m) ->
+	console.error m
+	process.exit 1
+
+readline = Readline.createInterface {
+	input: process.stdin
+	output: process.stdout
+	terminal: false
+}
+
+values = {}
+
+readline.on 'line', (line) =>
+	value = line.trim()
+	values[value] = 1
+
+readline.on 'close', () =>
+	for key in Object.keys(values)
+		console.log(key)
+	process.exit(0)
+
+readline.on 'error', (err) => die err
+

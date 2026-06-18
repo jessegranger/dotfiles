@@ -1,0 +1,23 @@
+#!/usr/bin/env coffee
+Readline = require 'readline'
+die = (m) ->
+	console.error m
+	process.exit 1
+
+readline = Readline.createInterface {
+	input: process.stdin
+	output: process.stdout
+	terminal: false
+}
+
+min = Infinity
+
+readline.on 'line', (line) =>
+	value = parseFloat(line.trim())
+	if isFinite(value) and not isNaN(value)
+		if value < min
+			min = value
+
+readline.on 'close', () =>
+	console.log min 
+

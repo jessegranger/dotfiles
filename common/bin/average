@@ -1,0 +1,25 @@
+#!/usr/bin/env coffee
+Readline = require 'readline'
+die = (m) ->
+	console.error m
+	process.exit 1
+
+readline = Readline.createInterface {
+	input: process.stdin
+	output: process.stdout
+	terminal: false
+}
+
+values = []
+
+readline.on 'line', (line) =>
+	value = parseFloat(line.trim())
+	if isFinite(value) and not isNaN(value)
+		values.push value
+
+readline.on 'close', () =>
+	if values.length is 0
+		die "0.0"
+	sum = values.reduce ((a,b) -> a + b), 0
+	console.log sum / values.length
+
