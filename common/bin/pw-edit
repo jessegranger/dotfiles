@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+if [ ! -f "$PW_FILE" ]; then
+	echo Specified input file: \"$PW_FILE\", was not found.
+	exit 1
+fi
+
+if [ -z "$EDITOR" ]; then
+	echo No EDITOR specified, eg, export EDITOR=vim
+	exit 1
+fi
+
+if [ ! -x `which $EDITOR` ]; then
+	echo Invalid EDITOR specified, not executable.
+	exit 1
+fi
+
+TMP_FILE=$(mktemp)
+echo "Created working file $TMP_FILE"
+decrypt $PW_FILE > $TMP_FILE && \
+	$EDITOR $TMP_FILE && \
+	encrypt $TMP_FILE > $PW_FILE
+echo "Removing working file $TMP_FILE"
+rm $TMP_FILE
