@@ -6,5 +6,5 @@ if [ -z "$1" ]; then
 	exit 1
 fi
 
-openssl enc -aes-256-cbc -salt -d -in "$INPUT" -out - -pbkdf2
+openssl enc -aes-256-cbc -salt -d -in "$INPUT" -pbkdf2
 
