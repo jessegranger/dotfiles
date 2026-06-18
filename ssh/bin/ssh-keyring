@@ -9,7 +9,7 @@ list)
 		if [ "`cat ${HOME}/.ssh/id_rsa.pub`" == "`cat $file`" ]; then
 			echo -n "*"
 		fi
-		ssh-keygen -lf $file -E md5
+		ssh-keygen -lf $file -E sha256
 	done
 ;;
 
