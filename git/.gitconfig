@@ -10,14 +10,35 @@
 	statusuoption = false
 	pushUpdateRejected = false
 [alias]
-	lg = log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit
 	branches = branch -a
 	tags = tag
 	stashes = stash list
 	unstage = reset -q HEAD --
 	discard = checkout --
 	uncommit = reset --mixed HEAD~
-	amend = commit --amend
+	lg = log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit
+	fork-diff = "!f() { \
+    b=\"${1:-$(git symbolic-ref --short HEAD)}\"; \
+    first=$(git rev-list \"$b\" --not \
+      $(git for-each-ref --format='%(refname)' refs/heads/ | grep -v \"/$b$\") \
+      | tail -1); \
+    if [ -z \"$first\" ]; then \
+      echo \"No commits unique to '$b' — nothing to diff.\"; return 0; \
+    fi; \
+    echo \"# $b forked at $(git rev-parse --short \"$first^\")\"; \
+    git diff \"${@:2}\" \"$first^\" \"$b\"; \
+  }; f"
+	fork-log = "!f() { \
+    b=\"${1:-$(git symbolic-ref --short HEAD)}\"; \
+    first=$(git rev-list \"$b\" --not \
+      $(git for-each-ref --format='%(refname)' refs/heads/ | grep -v \"/$b$\") \
+      | tail -1); \
+    if [ -z \"$first\" ]; then \
+      echo \"No commits unique to '$b'.\"; return 0; \
+    fi; \
+    echo \"# $b forked at $(git rev-parse --short \"$first^\")\"; \
+    git lg \"${@:2}\" \"$first^\"..\"$b\"; \
+  }; f"
 [push]
 	default = matching
 [color]
