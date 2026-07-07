@@ -47,9 +47,26 @@ export PATH=$HOME/bin:$HOME/sbin
 export PATH=$PATH:/usr/local/bin:/usr/local/sbin
 export PATH=$PATH:/usr/bin:/usr/sbin
 export PATH=$PATH:/bin:/sbin
-export PATH=$PATH:/usr/X11/bin
-export PATH=$PATH:/usr/local/git/bin:/opt/go/bin
-export PATH=$PATH:/usr/local/share/npm/bin
+[ -d /usr/X11/bin ]             && export PATH=$PATH:/usr/X11/bin
+[ -d /usr/local/git/bin ]       && export PATH=$PATH:/usr/local/git/bin
+[ -d /opt/go/bin ]              && export PATH=$PATH:/opt/go/bin
+[ -d /usr/local/share/npm/bin ] && export PATH=$PATH:/usr/local/share/npm/bin
+[ -d /opt/homebrew/bin ]        && export PATH=$PATH:/opt/homebrew/bin
+[ -d /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin ] && \
+	export PATH=$PATH:/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin
+[ -d /Applications/Xcode.app/Contents/Developer/usr/bin ] && \
+	export PATH=$PATH:/Applications/Xcode.app/Contents/Developer/usr/bin 
+if [ -e /cygdrive ]; then
+	# put the Windows paths on PATH
+	export PATH=$PATH:/cygdrive/c/Windows:/cygdrive/c/Windows/system32
+	export PATH="$PATH:/cygdrive/c/Program Files (x86)/nodejs"
+	export PATH="$PATH:/cygdrive/c/Program Files/nodejs"
+	alias vi=vim
+fi
+# prepend GNU tools to the MacOS PATH
+[ -d /opt/homebrew/opt/grep/libexec/gnubin ] && \
+	export PATH=/opt/homebrew/opt/grep/libexec/gnubin:$PATH
+# prepend local node tools to the PATH
 export PATH=./node_modules/.bin:$PATH
 
 # set up the right editor
@@ -64,22 +81,12 @@ fi
 alias gvim="echo Loading in tab... && $VIMGUI"
 alias vi=vim
 
-if [ -e /Applications ]; then
-	# put XCode on the PATH
-	export PATH=$PATH:/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin:/Applications/Xcode.app/Contents/Developer/usr/bin
-elif [ -e /cygdrive ]; then
-	# put the Windows paths on PATH
-	export PATH=$PATH:/cygdrive/c/Windows:/cygdrive/c/Windows/system32
-	export PATH="$PATH:/cygdrive/c/Program Files (x86)/nodejs"
-	export PATH="$PATH:/cygdrive/c/Program Files/nodejs"
-	alias vi=vim
-fi
-
 setopt nocorrect
 setopt nocorrectall
 
 # Node settings:
 export NODE_PATH=$HOME/lib/node_modules
+export NODE_ENV=development
 
 
 # Go settings:
@@ -134,3 +141,17 @@ alias vpr="vagrant provision"
 
 # Nethack manual
 nh() { lynx -dump -nolist -nonumbers http://nethack.wikia.com/wiki/$1 | tail +155 | LC_ALL=C sed -e 's/\[yH5.*\]//' -e 's/\^\[[0-9]*\]//' | less }
+
+export PW_FILE=$HOME/Documents/9BLgwhVF.csv.enc
+
+if [ -d /Users/jesse/Library/Android/sdk ]; then
+	export ANDROID_HOME=/Users/jesse/Library/Android/sdk
+	export PATH=$PATH:$ANDROID_HOME/emulator
+	export PATH=$PATH:$ANDROID_HOME/platform-tools
+fi
+
+if [ -d "$HOME/.nvm" ]; then
+	export NVM_DIR="$HOME/.nvm"
+	[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+	[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+fi
