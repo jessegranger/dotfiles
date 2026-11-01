@@ -6,7 +6,8 @@
 #   pw get <query>         find an entry by username/keywords, copy its password
 #   pw add                 add an entry (prompts for username, password, keywords)
 #   pw edit <query>        edit an entry
-#   pw remove <query>      remove an entry (also: pw rm, pw del)
+#   pw remove <query>      mark an entry deleted (also: pw rm, pw del)
+#   pw sync <url>          merge with a copy of the vault on a WebDAV server
 #   pw init <file.csv>     create $PW_FILE from an unencrypted old-format CSV
 #   pw migrate [file]      upgrade an encrypted old-format CSV vault (default $PW_FILE)
 #
@@ -17,6 +18,12 @@
 #     mtime  unix epoch seconds of last change
 #     misc   space-separated searchable keywords, URLs, app names
 #   Fields may not contain tabs or newlines.
+#   Removed entries stay in the file (so the removal can sync), with misc prefixed
+#   by [DELETED] and mtime set to the time of removal; every command ignores them.
+#
+# Sync: `pw sync <url>` GETs the vault at <url> (it must use the same master
+# password), merges by id keeping the row with the newest mtime, saves locally and
+# PUTs the result back. WebDAV credentials come from an entry matching "WebDAV".
 #
 # Old format (v1): CSV of URL,username,password,misc...
 #
@@ -33,6 +40,7 @@ HEADER=$'#pw-v2\tid\tmtime\tusername\tpassword\tmisc'
 MASK='********'
 PW_GEN_LEN=16
 PW_GEN_SPECIALS='!@#$%&*_+=?-'
+DELETED_TAG='[DELETED]'
 TAB=$'\t'
 NL=$'\n'
 
@@ -42,7 +50,7 @@ DATA=""        # decrypted v2 rows (no header), in memory only
 die() { echo "pw: $*" >&2; exit 1; }
 
 usage() {
-	sed -n '3,12s/^# \{0,1\}//p' "$0"
+	sed -n '3,13s/^# \{0,1\}//p' "$0"
 	exit "${1:-0}"
 }
 
@@ -103,10 +111,13 @@ decrypt_vault() {
 	VAULT_TEXT=""
 }
 
+write_vault() { # $1 = file to write DATA to, encrypted
+	{ printf '%s\n' "$HEADER"; [ -n "$DATA" ] && printf '%s\n' "$DATA"; } | _enc_to "$1"
+}
+
 save() {
 	local tmp="$PW_FILE.tmp.$$"
-	if { printf '%s\n' "$HEADER"; [ -n "$DATA" ] && printf '%s\n' "$DATA"; } | _enc_to "$tmp" \
-		&& mv -f "$tmp" "$PW_FILE"; then
+	if write_vault "$tmp" && mv -f "$tmp" "$PW_FILE"; then
 		return 0
 	fi
 	rm -f "$tmp"
@@ -192,11 +203,12 @@ migrate_v1() { # converts VAULT_TEXT (v1) into DATA and saves, keeping an encryp
 
 count_rows() { [ -z "$DATA" ] && echo 0 || printf '%s\n' "$DATA" | wc -l | tr -d ' '; }
 
-# Rows whose username or misc contains the query (case-insensitive, literal).
+# Live (not deleted) rows whose username or misc contains the query (case-insensitive, literal).
 find_rows() {
 	[ -z "$DATA" ] && return
-	printf '%s\n' "$DATA" | Q="$1" awk -F'\t' '
+	printf '%s\n' "$DATA" | Q="$1" D="$DELETED_TAG" awk -F'\t' '
 		BEGIN { q = tolower(ENVIRON["Q"]) }
+		index($5, ENVIRON["D"]) == 1 { next }
 		index(tolower($3), q) || index(tolower($5), q)'
 }
 
@@ -360,9 +372,116 @@ cmd_remove() {
 	show_row
 	read -r -p "Remove this entry? [y/N] " ans
 	case $ans in [yY]*) ;; *) echo "Not removed." >&2; return ;; esac
-	replace_row "$R_ID" ""
+	# keep the row, so the removal wins over older copies when syncing
+	replace_row "$R_ID" "$R_ID$TAB$(date +%s)$TAB$R_USER$TAB$R_PASS$TAB$DELETED_TAG${R_MISC:+ $R_MISC}"
 	save
 	echo "Removed." >&2
+}
+
+# ---------------------------------------------------------------- sync
+
+# A curl config (for -K -) holding the credentials, so they stay out of argv.
+curl_auth() { # $1 = user, $2 = password
+	local u=$1 p=$2
+	u=${u//\\/\\\\}; u=${u//\"/\\\"}
+	p=${p//\\/\\\\}; p=${p//\"/\\\"}
+	printf 'user = "%s:%s"\n' "$u" "$p"
+}
+
+# Merge two sets of rows by id: the newer mtime wins, and on a tie the larger row, so
+# every device reaches the same result. Keeps the order of $1; new rows go at the end.
+merge_rows() { # $1, $2 = rows
+	printf '%s\n' "$1" | OTHER="$2" awk -F'\t' '
+		BEGIN {
+			n = split(ENVIRON["OTHER"], o, "\n")
+			for (i = 1; i <= n; i++) {
+				if (o[i] == "") continue
+				split(o[i], f, "\t")
+				if (f[1] in row) continue
+				row[f[1]] = o[i]; mt[f[1]] = f[2]; ids[++k] = f[1]
+			}
+		}
+		!NF { next }
+		$1 in row {
+			seen[$1] = 1
+			if (mt[$1] + 0 > $2 + 0 || (mt[$1] + 0 == $2 + 0 && row[$1] > $0)) print row[$1]
+			else print
+			next
+		}
+		{ print }
+		END { for (i = 1; i <= k; i++) if (!(ids[i] in seen)) print row[ids[i]] }'
+}
+
+same_rows() { # $1, $2 = rows; true if they hold the same rows in any order
+	[ "$(printf '%s\n' "$1" | LC_ALL=C sort)" = "$(printf '%s\n' "$2" | LC_ALL=C sort)" ]
+}
+
+cmd_sync() {
+	[ $# -eq 1 ] || die "usage: pw sync <url>"
+	local url=$1 rows row dav_user dav_pass code etag remote merged local_file
+	local -a cond=()
+	command -v curl >/dev/null 2>&1 || die "curl is required for sync"
+	load
+
+	rows=$(find_rows WebDAV)
+	[ -n "$rows" ] || die "no WebDAV login found; add an entry with \"WebDAV\" in its keywords"
+	echo "WebDAV login:" >&2
+	row=$(pick "$rows") || exit 1
+	split_row "$row"
+	show_row >&2
+	dav_user=$R_USER dav_pass=$R_PASS
+
+	SYNC_TMP="$PW_FILE.sync.$$"
+	SYNC_HDR="$PW_FILE.hdr.$$"
+	trap 'rm -f "$SYNC_TMP" "$SYNC_HDR"' EXIT
+
+	code=$(curl_auth "$dav_user" "$dav_pass" |
+		curl -sS -K - -D "$SYNC_HDR" -o "$SYNC_TMP" -w '%{http_code}' "$url") ||
+		die "could not fetch $url"
+	case $code in
+	200)
+		local_file=$PW_FILE
+		PW_FILE=$SYNC_TMP
+		decrypt_vault
+		PW_FILE=$local_file
+		[ "$VAULT_KIND" = v2 ] || die "could not decrypt $url (different master password, or not a v2 vault)"
+		remote=$VAULT_TEXT
+		VAULT_TEXT=""
+		# only replace the copy we merged with, so a concurrent sync can't be lost
+		etag=$(sed -n 's/^[Ee][Tt][Aa][Gg]:[[:space:]]*//p' "$SYNC_HDR" | tr -d '\r' | tail -n 1)
+		[ -n "$etag" ] && cond=(-H "If-Match: $etag")
+		;;
+	404)
+		echo "$url does not exist yet; it will be created." >&2
+		remote=""
+		cond=(-H "If-None-Match: *")
+		;;
+	401 | 403) die "WebDAV login was refused (HTTP $code)" ;;
+	*) die "fetching $url failed (HTTP $code)" ;;
+	esac
+
+	merged=$(merge_rows "$DATA" "$remote")
+	if same_rows "$merged" "$DATA"; then
+		echo "Local vault already up to date." >&2
+	else
+		DATA=$merged
+		save
+		echo "Local vault updated." >&2
+	fi
+
+	if [ "$code" = 200 ] && same_rows "$merged" "$remote"; then
+		echo "Remote vault already up to date." >&2
+		return
+	fi
+	write_vault "$SYNC_TMP" || die "failed to encrypt the merged vault"
+	code=$(curl_auth "$dav_user" "$dav_pass" |
+		curl -sS -K - -T "$SYNC_TMP" ${cond[@]+"${cond[@]}"} -o /dev/null -w '%{http_code}' "$url") ||
+		die "could not upload to $url"
+	case $code in
+	200 | 201 | 204) echo "Remote vault updated." >&2 ;;
+	412) die "$url changed during sync; run 'pw sync' again" ;;
+	*) die "uploading to $url failed (HTTP $code)" ;;
+	esac
 }
 
 cmd_init() {
@@ -406,5 +525,6 @@ edit) cmd_edit "$@" ;;
 remove | rm | del) cmd_remove "$@" ;;
 init) cmd_init "$@" ;;
 migrate) cmd_migrate "$@" ;;
+sync) cmd_sync "$@" ;;
 *) cmd_get "$cmd" "$@" ;;   # `pw domino` keeps working
 esac
