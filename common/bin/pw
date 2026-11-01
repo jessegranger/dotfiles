@@ -1,71 +1,410 @@
 #!/usr/bin/env bash
+#
+# pw - a tiny password store: an openssl-encrypted TSV file, decrypted only in memory.
+#
+#   pw <query>             same as `pw get <query>`
+#   pw get <query>         find an entry by username/keywords, copy its password
+#   pw add                 add an entry (prompts for username, password, keywords)
+#   pw edit <query>        edit an entry
+#   pw remove <query>      remove an entry (also: pw rm, pw del)
+#   pw init <file.csv>     create $PW_FILE from an unencrypted old-format CSV
+#   pw migrate [file]      upgrade an encrypted old-format CSV vault (default $PW_FILE)
+#
+# Vault format (v2), after decryption:
+#   line 1:  #pw-v2<TAB>id<TAB>mtime<TAB>username<TAB>password<TAB>misc
+#   rows:    <id><TAB><mtime><TAB><username><TAB><password><TAB><misc>
+#     id     12 random hex chars (random, not sequential, so devices can't collide later)
+#     mtime  unix epoch seconds of last change
+#     misc   space-separated searchable keywords, URLs, app names
+#   Fields may not contain tabs or newlines.
+#
+# Old format (v1): CSV of URL,username,password,misc...
+#
+# Encryption: openssl enc -aes-256-cbc -salt -pbkdf2 -iter $PW_ITER
+#   Old vaults used openssl's default of 10000 iterations; those are still read,
+#   and are rewritten with $PW_ITER the next time the vault is saved.
 
-if [ ! -f "$PW_FILE" ]; then
-	echo Specified input file: \"$PW_FILE\", was not found.
-	exit 1
-fi
+set -u
+umask 077
 
-# Pick the platform-appropriate clipboard command.
-#   macOS:           pbcopy
-#   Linux (Wayland): wl-copy
-#   Linux (X11):     xclip or xsel
-clip_cmd() {
-	if command -v pbcopy >/dev/null 2>&1; then
-		echo "pbcopy"
-	elif command -v wl-copy >/dev/null 2>&1; then
-		echo "wl-copy"
-	elif command -v xclip >/dev/null 2>&1; then
-		echo "xclip -selection clipboard"
-	elif command -v xsel >/dev/null 2>&1; then
-		echo "xsel --clipboard --input"
+PW_ITER=${PW_ITER:-600000}
+LEGACY_ITER=10000
+HEADER=$'#pw-v2\tid\tmtime\tusername\tpassword\tmisc'
+MASK='********'
+PW_GEN_LEN=16
+PW_GEN_SPECIALS='!@#$%&*_+=?-'
+TAB=$'\t'
+NL=$'\n'
+
+PASS=""        # master password, in memory only
+DATA=""        # decrypted v2 rows (no header), in memory only
+
+die() { echo "pw: $*" >&2; exit 1; }
+
+usage() {
+	sed -n '3,12s/^# \{0,1\}//p' "$0"
+	exit "${1:-0}"
+}
+
+# ---------------------------------------------------------------- crypto
+
+ask_pass() {
+	[ -n "$PASS" ] && return
+	read -rs -p "${1:-master password: }" PASS
+	echo >&2
+	[ -n "$PASS" ] || die "empty password"
+}
+
+ask_new_pass() {
+	local again
+	read -rs -p "new master password: " PASS; echo >&2
+	[ -n "$PASS" ] || die "empty password"
+	read -rs -p "repeat master password: " again; echo >&2
+	[ "$PASS" = "$again" ] || die "passwords do not match"
+}
+
+# The password reaches openssl through an environment variable set for that one
+# child process only (works with OpenSSL, LibreSSL, and Windows builds alike).
+_dec() {
+	_PW_KEY="$PASS" openssl enc -d -aes-256-cbc -pbkdf2 -iter "$1" \
+		-in "$PW_FILE" -pass env:_PW_KEY 2>/dev/null
+}
+
+# Plaintext comes in on stdin; only ciphertext touches the disk.
+_enc_to() {
+	_PW_KEY="$PASS" openssl enc -aes-256-cbc -salt -pbkdf2 -iter "$PW_ITER" \
+		-out "$1" -pass env:_PW_KEY
+}
+
+# True if the text has no control characters besides tab/CR/LF. A wrong password
+# that happens to pass CBC padding yields random bytes, which fails this.
+is_text() {
+	! printf '%s' "$1" | tr -d '\t\r\n' | LC_ALL=C grep -q '[[:cntrl:]]'
+}
+
+# Sets VAULT_KIND (v2 | v1 | bad) and VAULT_TEXT (v2: rows without header; v1: raw CSV).
+decrypt_vault() {
+	local out st iter
+	for iter in "$PW_ITER" "$LEGACY_ITER"; do
+		{ out=$(_dec "$iter"); st=$?; } 2>/dev/null
+		if [ $st -eq 0 ] && [ "${out%%"$NL"*}" = "$HEADER" ]; then
+			VAULT_KIND=v2
+			if [ "$out" = "$HEADER" ]; then VAULT_TEXT=""; else VAULT_TEXT=${out#*"$NL"}; fi
+			return
+		fi
+	done
+	# The last attempt used the legacy iteration count, as old vaults did.
+	if [ $st -eq 0 ] && [ -n "$out" ] && is_text "$out"; then
+		VAULT_KIND=v1
+		VAULT_TEXT=$out
+		return
+	fi
+	VAULT_KIND=bad
+	VAULT_TEXT=""
+}
+
+save() {
+	local tmp="$PW_FILE.tmp.$$"
+	if { printf '%s\n' "$HEADER"; [ -n "$DATA" ] && printf '%s\n' "$DATA"; } | _enc_to "$tmp" \
+		&& mv -f "$tmp" "$PW_FILE"; then
+		return 0
+	fi
+	rm -f "$tmp"
+	die "failed to write $PW_FILE"
+}
+
+load() {
+	[ -f "$PW_FILE" ] || die "vault not found: $PW_FILE"
+	ask_pass
+	decrypt_vault
+	case $VAULT_KIND in
+	v2) DATA=$VAULT_TEXT ;;
+	v1)
+		read -r -p "$PW_FILE is in the old CSV format. Migrate it to the new format now? [Y/n] " ans
+		case $ans in [nN]*) die "not migrated; run 'pw migrate' when ready" ;; esac
+		migrate_v1
+		;;
+	*) die "decryption failed (wrong password?)" ;;
+	esac
+	VAULT_TEXT=""
+}
+
+# ---------------------------------------------------------------- format conversion
+
+new_ids() { # $1 = how many
+	od -An -v -tx1 -N$(($1 * 6)) /dev/urandom | tr -d ' \n' | fold -w12
+}
+
+# Old CSV (URL,username,password,misc...) on stdin -> v2 rows on stdout.
+# Handles double-quoted fields ("a,b" and "" escapes); a quote only starts
+# quoting at the beginning of a field, so unquoted passwords containing " survive.
+CSV_AWK='
+function err(msg) { print "pw: " msg | "cat 1>&2" }
+function parse_csv(s, f,    n, i, c, q, start, fld) {
+	n = 0; fld = ""; q = 0; start = 1
+	for (i = 1; i <= length(s); i++) {
+		c = substr(s, i, 1)
+		if (q) {
+			if (c == "\"") {
+				if (substr(s, i + 1, 1) == "\"") { fld = fld "\""; i++ }
+				else q = 0
+			} else fld = fld c
+		} else if (c == "\"" && start) { q = 1; start = 0 }
+		else if (c == ",") { f[++n] = fld; fld = ""; start = 1 }
+		else { fld = fld c; start = 0 }
+	}
+	f[++n] = fld
+	return n
+}
+BEGIN { FS = "\n"; split(ENVIRON["IDS"], ids, "\n"); now = ENVIRON["NOW"]; k = 0 }
+{ sub(/\r$/, "") }
+/^[ \t]*$/ { next }
+{
+	delete f
+	n = parse_csv($0, f)
+	if (NR == 1 && tolower(f[2]) == "username" && tolower(f[3]) == "password") next
+	if (n < 3) { err("line " NR ": expected at least URL,username,password; aborting"); bad = 1; exit 1 }
+	user = f[2]; pass = f[3]; misc = f[1]
+	for (i = 4; i <= n; i++) misc = misc " " f[i]
+	if (gsub(/\t/, " ", pass)) err("warning: password for \"" user "\" contained a tab; replaced with a space")
+	gsub(/\t/, " ", user); gsub(/\t/, " ", misc)
+	gsub(/  +/, " ", misc); sub(/^ /, "", misc); sub(/ $/, "", misc)
+	printf "%s\t%s\t%s\t%s\t%s\n", ids[++k], now, user, pass, misc
+}
+END { if (bad) exit 1 }
+'
+
+csv_to_v2() { # $1 = CSV text
+	local n
+	n=$(printf '%s\n' "$1" | wc -l | tr -d ' ')
+	printf '%s\n' "$1" | IDS="$(new_ids "$n")" NOW="$(date +%s)" awk "$CSV_AWK"
+}
+
+migrate_v1() { # converts VAULT_TEXT (v1) into DATA and saves, keeping an encrypted backup
+	local backup="$PW_FILE.v1-$(date +%Y%m%d%H%M%S).bak"
+	DATA=$(csv_to_v2 "$VAULT_TEXT") || die "migration failed; $PW_FILE was not changed"
+	cp -p "$PW_FILE" "$backup" || die "could not back up $PW_FILE"
+	save
+	echo "Migrated $(count_rows) entries. Old (still encrypted) vault saved as $backup" >&2
+}
+
+# ---------------------------------------------------------------- rows
+
+count_rows() { [ -z "$DATA" ] && echo 0 || printf '%s\n' "$DATA" | wc -l | tr -d ' '; }
+
+# Rows whose username or misc contains the query (case-insensitive, literal).
+find_rows() {
+	[ -z "$DATA" ] && return
+	printf '%s\n' "$DATA" | Q="$1" awk -F'\t' '
+		BEGIN { q = tolower(ENVIRON["Q"]) }
+		index(tolower($3), q) || index(tolower($5), q)'
+}
+
+list_rows() { awk -F'\t' -v m="$MASK" '{ printf "%2d) %s  %s  %s\n", NR, $3, m, $5 }'; }
+
+# Pick one row from $1 (one row per line); prints it. Prompts only if there are several.
+pick() {
+	local rows="$1" count choice
+	count=$(printf '%s\n' "$rows" | wc -l | tr -d ' ')
+	if [ "$count" -eq 1 ]; then
+		printf '%s\n' "$rows"
+		return
+	fi
+	printf '%s\n' "$rows" | list_rows >&2
+	read -r -p "Select an entry [1-$count]: " choice
+	case $choice in '' | *[!0-9]*) die "invalid selection" ;; esac
+	[ "$choice" -ge 1 ] && [ "$choice" -le "$count" ] || die "selection out of range"
+	printf '%s\n' "$rows" | sed -n "${choice}p"
+}
+
+# Split a row into R_ID R_MTIME R_USER R_PASS R_MISC (empty fields preserved).
+split_row() {
+	local r=$1
+	R_ID=${r%%"$TAB"*};    r=${r#*"$TAB"}
+	R_MTIME=${r%%"$TAB"*}; r=${r#*"$TAB"}
+	R_USER=${r%%"$TAB"*};  r=${r#*"$TAB"}
+	R_PASS=${r%%"$TAB"*};  R_MISC=${r#*"$TAB"}
+}
+
+show_row() { printf '%s  %s  %s\n' "$R_USER" "$MASK" "$R_MISC"; }
+
+replace_row() { # $1 = id, $2 = new row (empty = delete)
+	DATA=$(printf '%s\n' "$DATA" | ID="$1" ROW="$2" awk -F'\t' '
+		$1 == ENVIRON["ID"] { if (ENVIRON["ROW"] != "") print ENVIRON["ROW"]; next }
+		NF')
+}
+
+select_one() { # $* = query; sets R_* or exits
+	local q="$*" rows row
+	[ -n "$q" ] || die "a query is required"
+	rows=$(find_rows "$q")
+	[ -n "$rows" ] || { echo "No matches" >&2; exit 0; }
+	row=$(pick "$rows") || exit 1
+	split_row "$row"
+}
+
+# ---------------------------------------------------------------- prompts
+
+# Random password: PW_GEN_LEN chars of letters, digits and PW_GEN_SPECIALS, with at
+# least one lowercase, uppercase, digit and special. Candidates that miss a class are
+# discarded and redrawn, which keeps the result uniformly random.
+gen_password() {
+	local pw
+	while :; do
+		pw=$(LC_ALL=C tr -dc "A-Za-z0-9$PW_GEN_SPECIALS" </dev/urandom 2>/dev/null | head -c "$PW_GEN_LEN")
+		[ ${#pw} -eq "$PW_GEN_LEN" ] || die "could not read /dev/urandom"
+		case $pw in *[[:lower:]]*) ;; *) continue ;; esac
+		case $pw in *[[:upper:]]*) ;; *) continue ;; esac
+		case $pw in *[[:digit:]]*) ;; *) continue ;; esac
+		case $pw in *[![:alnum:]]*) ;; *) continue ;; esac
+		printf '%s' "$pw"
+		return
+	done
+}
+
+ask_line() { # $1 = var name, $2 = prompt, $3 = default
+	local _v
+	if [ "${BASH_VERSINFO[0]}" -ge 4 ] && [ -t 0 ]; then
+		read -r -e -p "$2" -i "$3" _v           # editable, pre-filled
+	elif [ -n "$3" ]; then
+		read -r -p "$2[$3] " _v                  # bash 3.2 (stock macOS): Enter keeps current
+		[ -z "$_v" ] && _v=$3
 	else
-		return 1
+		read -r -p "$2" _v
+	fi
+	printf -v "$1" '%s' "$_v"
+}
+
+# Sets E_USER E_PASS E_MISC. Optional args are current values (for edit).
+prompt_entry() {
+	local du="${1-}" dp="${2-}" dm="${3-}"
+	ask_line E_USER "username: " "$du"
+	if [ -n "$dp" ]; then
+		# edit: never display the existing password
+		read -rs -p "password (Enter keeps current): " E_PASS
+		echo >&2
+		[ -z "$E_PASS" ] && E_PASS=$dp
+	else
+		# add: visible, pre-filled with a generated password (edit or replace it freely)
+		ask_line E_PASS "password: " "$(gen_password)"
+	fi
+	ask_line E_MISC "keywords: " "$dm"
+	[ -n "$E_PASS" ] || die "password is required"
+	case "$E_USER$E_PASS$E_MISC" in *"$TAB"*) die "fields cannot contain tab characters" ;; esac
+}
+
+# ---------------------------------------------------------------- clipboard
+
+clip_cmd() {
+	if command -v pbcopy >/dev/null 2>&1; then echo "pbcopy"
+	elif command -v wl-copy >/dev/null 2>&1; then echo "wl-copy"
+	elif command -v xclip >/dev/null 2>&1; then echo "xclip -selection clipboard"
+	elif command -v xsel >/dev/null 2>&1; then echo "xsel --clipboard --input"
+	elif command -v termux-clipboard-set >/dev/null 2>&1; then echo "termux-clipboard-set"
+	elif command -v clip.exe >/dev/null 2>&1; then echo "clip.exe"
+	else return 1
 	fi
 }
 
-# Send the given password to the clipboard via the platform-appropriate tool.
 copy_to_clipboard() {
-	cmd=$(clip_cmd)
-	if [ -n "$cmd" ]; then
+	local cmd
+	if cmd=$(clip_cmd); then
 		printf '%s' "$1" | $cmd
-		echo "(password copied to clipboard)"
+		echo "(password copied to clipboard)" >&2
 	else
 		echo "(no clipboard tool found; password not copied)" >&2
 	fi
 }
 
-matches=$(decrypt "$PW_FILE" | grep $*)
+# ---------------------------------------------------------------- commands
 
-if [ -z "$matches" ]; then
-	echo No matches
-	exit 0
-fi
+cmd_get() {
+	load
+	select_one "$@"
+	show_row
+	copy_to_clipboard "$R_PASS"
+}
 
-count=$(echo "$matches" | wc -l | tr -d ' ')
+cmd_add() {
+	[ $# -eq 0 ] || die "add takes no arguments"
+	local id row
+	load
+	prompt_entry
+	id=$(new_ids 1)
+	while printf '%s\n' "$DATA" | cut -f1 | grep -qx "$id"; do id=$(new_ids 1); done
+	row="$id$TAB$(date +%s)$TAB$E_USER$TAB$E_PASS$TAB$E_MISC"
+	if [ -z "$DATA" ]; then DATA=$row; else DATA="$DATA$NL$row"; fi
+	save
+	echo "Added." >&2
+	copy_to_clipboard "$E_PASS"
+}
 
-if [ "$count" -eq 1 ]; then
-	# Single match: print it with the password (3rd field) masked, then copy.
-	echo "$matches" | awk -F, 'BEGIN { OFS = "," } { gsub(/./, "X", $3); print }'
-	password=$(echo "$matches" | awk -F, '{ print $3 }')
-	copy_to_clipboard "$password"
-else
-	# Multiple matches: show a numbered list with passwords masked, then ask.
-	echo "$matches" | awk -F, 'BEGIN { OFS = "," } { gsub(/./, "X", $3); printf "%d) %s\n", NR, $0 }'
-	printf "Select an entry [1-%s]: " "$count"
-	read -r choice
-
-	case "$choice" in
-		'' | *[!0-9]*)
-			echo "Invalid selection." >&2
-			exit 1
-			;;
-	esac
-
-	if [ "$choice" -lt 1 ] || [ "$choice" -gt "$count" ]; then
-		echo "Selection out of range." >&2
-		exit 1
+cmd_edit() {
+	load
+	select_one "$@"
+	show_row
+	prompt_entry "$R_USER" "$R_PASS" "$R_MISC"
+	if [ "$E_USER" = "$R_USER" ] && [ "$E_PASS" = "$R_PASS" ] && [ "$E_MISC" = "$R_MISC" ]; then
+		echo "No changes." >&2
+		return
 	fi
+	replace_row "$R_ID" "$R_ID$TAB$(date +%s)$TAB$E_USER$TAB$E_PASS$TAB$E_MISC"
+	save
+	echo "Updated." >&2
+}
 
-	password=$(echo "$matches" | awk -F, -v n="$choice" 'NR == n { print $3 }')
-	copy_to_clipboard "$password"
-fi
+cmd_remove() {
+	local ans
+	load
+	select_one "$@"
+	show_row
+	read -r -p "Remove this entry? [y/N] " ans
+	case $ans in [yY]*) ;; *) echo "Not removed." >&2; return ;; esac
+	replace_row "$R_ID" ""
+	save
+	echo "Removed." >&2
+}
+
+cmd_init() {
+	[ $# -eq 1 ] || die "usage: pw init <file.csv>"
+	[ -f "$1" ] || die "no such file: $1"
+	[ -e "$PW_FILE" ] && die "$PW_FILE already exists; refusing to overwrite"
+	DATA=$(csv_to_v2 "$(cat "$1")") || die "could not convert $1"
+	ask_new_pass
+	save
+	echo "Encrypted $(count_rows) entries to $PW_FILE." >&2
+	echo "The unencrypted $1 is still on disk; delete it when you've checked the vault." >&2
+}
+
+cmd_migrate() {
+	[ $# -le 1 ] || die "usage: pw migrate [file]"
+	[ $# -eq 1 ] && PW_FILE=$1
+	[ -f "$PW_FILE" ] || die "vault not found: $PW_FILE"
+	ask_pass
+	decrypt_vault
+	case $VAULT_KIND in
+	v2) echo "$PW_FILE is already in the new format." >&2 ;;
+	v1) migrate_v1 ;;
+	*) die "decryption failed (wrong password?)" ;;
+	esac
+}
+
+# ---------------------------------------------------------------- main
+
+case ${1:-} in
+'' | -h | --help | help) usage ;;
+esac
+
+[ -n "${PW_FILE:-}" ] || die "set PW_FILE to the path of your vault"
+
+cmd=$1
+shift
+case $cmd in
+get) cmd_get "$@" ;;
+add) cmd_add "$@" ;;
+edit) cmd_edit "$@" ;;
+remove | rm | del) cmd_remove "$@" ;;
+init) cmd_init "$@" ;;
+migrate) cmd_migrate "$@" ;;
+*) cmd_get "$cmd" "$@" ;;   # `pw domino` keeps working
+esac
