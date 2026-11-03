@@ -7,7 +7,7 @@
 #   pw add                 add an entry (prompts for username, password, keywords)
 #   pw edit <query>        edit an entry
 #   pw remove <query>      mark an entry deleted (also: pw rm, pw del)
-#   pw sync <url>          merge with a copy of the vault on a WebDAV server
+#   pw sync [url]          merge with a copy of the vault on a WebDAV server
 #   pw init <file.csv>     create $PW_FILE from an unencrypted old-format CSV
 #   pw migrate [file]      upgrade an encrypted old-format CSV vault (default $PW_FILE)
 #
@@ -24,6 +24,8 @@
 # Sync: `pw sync <url>` GETs the vault at <url> (it must use the same master
 # password), merges by id keeping the row with the newest mtime, saves locally and
 # PUTs the result back. WebDAV credentials come from an entry matching "WebDAV".
+# If $PW_FILE doesn't exist yet, sync instead prompts for the URL and WebDAV login
+# and just downloads the remote vault to $PW_FILE.
 #
 # Old format (v1): CSV of URL,username,password,misc...
 #
@@ -416,11 +418,45 @@ same_rows() { # $1, $2 = rows; true if they hold the same rows in any order
 	[ "$(printf '%s\n' "$1" | LC_ALL=C sort)" = "$(printf '%s\n' "$2" | LC_ALL=C sort)" ]
 }
 
+# No local vault yet: prompt for the location and login, and download the remote
+# vault as-is (no merge, so no master password is needed).
+sync_download() { # $1 = default url (may be empty)
+	local url dav_user dav_pass code
+	echo "$PW_FILE not found; downloading it from WebDAV." >&2
+	ask_line url "WebDAV URL: " "$1"
+	[ -n "$url" ] || die "a URL is required"
+	ask_line dav_user "WebDAV username: " ""
+	read -rs -p "WebDAV password: " dav_pass
+	echo >&2
+	mkdir -p "$(dirname "$PW_FILE")" || die "could not create the directory for $PW_FILE"
+
+	SYNC_TMP="$PW_FILE.sync.$$"
+	trap 'rm -f "$SYNC_TMP"' EXIT
+	code=$(curl_auth "$dav_user" "$dav_pass" |
+		curl -sS -K - -o "$SYNC_TMP" -w '%{http_code}' "$url") ||
+		die "could not fetch $url"
+	case $code in
+	200) ;;
+	404) die "$url does not exist" ;;
+	401 | 403) die "WebDAV login was refused (HTTP $code)" ;;
+	*) die "fetching $url failed (HTTP $code)" ;;
+	esac
+	# every openssl-encrypted vault starts with this magic
+	[ "$(LC_ALL=C head -c 8 "$SYNC_TMP")" = "Salted__" ] || die "$url is not an encrypted pw vault"
+	mv -f "$SYNC_TMP" "$PW_FILE" || die "failed to write $PW_FILE"
+	echo "Downloaded $url to $PW_FILE." >&2
+}
+
 cmd_sync() {
+	command -v curl >/dev/null 2>&1 || die "curl is required for sync"
+	if [ ! -e "$PW_FILE" ]; then
+		[ $# -le 1 ] || die "usage: pw sync [url]"
+		sync_download "${1-}"
+		return
+	fi
 	[ $# -eq 1 ] || die "usage: pw sync <url>"
 	local url=$1 rows row dav_user dav_pass code etag remote merged local_file
 	local -a cond=()
-	command -v curl >/dev/null 2>&1 || die "curl is required for sync"
 	load
 
 	rows=$(find_rows WebDAV)
@@ -514,7 +550,7 @@ case ${1:-} in
 '' | -h | --help | help) usage ;;
 esac
 
-[ -n "${PW_FILE:-}" ] || die "set PW_FILE to the path of your vault"
+[ -n "${PW_FILE:-}" ] || die "PW_FILE is not set; set it to the path of your vault, e.g. export PW_FILE=~/.pw"
 
 cmd=$1
 shift
