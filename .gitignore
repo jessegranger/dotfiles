@@ -1,3 +1,7 @@
 fish/.config/fish/fish_history
 fish/.config/fish/fishd.*
 fish/.config/fish/fish_variables
+ssh/.ssh/keyring/*
+ssh/.ssh/id_rsa*
+ssh/.ssh/known_host*
+ssh/.ssh/ssh_auth_sock
