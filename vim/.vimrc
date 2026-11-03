@@ -220,10 +220,10 @@ imap [1;5I   <Esc>:tabnext<cr>
 imap <C-S-tab> <Esc>:tabprev<cr>
 imap [1;6I   <Esc>:tabprev<cr>
 
-au FileType text set formatprg=par
-au FileType text set fo=atcq
-au FileType text set tw=72
-au FileType text map ,i mzgggqG'z
+" au FileType text set formatprg=par
+" au FileType text set fo=atcq
+" au FileType text set tw=72
+" au FileType text map ,i mzgggqG'z
 
 " HTML mappings
 au FileType html imap <scr <script type="text/javascript"
@@ -232,7 +232,7 @@ au FileType html imap <lin <link rel="stylesheet" href="
 au FileType html inoremap <!-- <!-- --><Esc>hhhi
 
 " Python mappings
-au! FileType python runtime! autoload/pythoncomplete.vim
+au! FileType python runtime! autoload/python3complete.vim
 
 " Go mappings
 au BufRead,BufNewFile *.go set filetype=go
