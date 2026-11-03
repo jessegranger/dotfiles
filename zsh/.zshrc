@@ -142,7 +142,7 @@ alias vpr="vagrant provision"
 # Nethack manual
 nh() { lynx -dump -nolist -nonumbers http://nethack.wikia.com/wiki/$1 | tail +155 | LC_ALL=C sed -e 's/\[yH5.*\]//' -e 's/\^\[[0-9]*\]//' | less }
 
-export PW_FILE=$HOME/Documents/9BLgwhVF.csv.enc
+export PW_FILE=$HOME/Documents/pw.tsv.enc
 
 if [ -d /Users/jesse/Library/Android/sdk ]; then
 	export ANDROID_HOME=/Users/jesse/Library/Android/sdk
