@@ -60,16 +60,15 @@ usage() {
 
 ask_pass() {
 	[ -n "$PASS" ] && return
-	read -rs -p "${1:-master password: }" PASS
-	echo >&2
+	ask_secret PASS "${1:-master password: }"
 	[ -n "$PASS" ] || die "empty password"
 }
 
 ask_new_pass() {
 	local again
-	read -rs -p "new master password: " PASS; echo >&2
+	ask_secret PASS "new master password: "
 	[ -n "$PASS" ] || die "empty password"
-	read -rs -p "repeat master password: " again; echo >&2
+	ask_secret again "repeat master password: "
 	[ "$PASS" = "$again" ] || die "passwords do not match"
 }
 
@@ -276,16 +275,45 @@ gen_password() {
 	done
 }
 
+# A terminal in line mode holds at most MAX_CANON bytes of a line (1024 on macOS) and
+# drops the rest, Enter included, so a long paste (a key, a token) could never be
+# submitted. Prompts therefore read through readline, or a key at a time.
+
 ask_line() { # $1 = var name, $2 = prompt, $3 = default
-	local _v
-	if [ "${BASH_VERSINFO[0]}" -ge 4 ] && [ -t 0 ]; then
+	local _v _e=
+	[ -t 0 ] && _e=-e
+	if [ "${BASH_VERSINFO[0]}" -ge 4 ] && [ -n "$_e" ]; then
 		read -r -e -p "$2" -i "$3" _v           # editable, pre-filled
 	elif [ -n "$3" ]; then
-		read -r -p "$2[$3] " _v                  # bash 3.2 (stock macOS): Enter keeps current
+		read -r $_e -p "$2[$3] " _v              # bash 3.2 (stock macOS): Enter keeps current
 		[ -z "$_v" ] && _v=$3
 	else
-		read -r -p "$2" _v
+		read -r $_e -p "$2" _v
 	fi
+	printf -v "$1" '%s' "$_v"
+}
+
+# Hidden input, like `read -rs -p`, but with no length limit.
+ask_secret() { # $1 = var name, $2 = prompt
+	local _v= _c _tty
+	if [ -t 0 ]; then
+		_tty=$(stty -g)
+		trap 'stty "$_tty"; echo >&2; exit 130' INT
+		stty -icanon -echo
+		printf '%s' "$2" >&2
+		while IFS= read -r -n 1 _c; do
+			case $_c in
+			'') break ;;                         # Enter
+			$'\177' | $'\b') _v=${_v%?} ;;       # Backspace
+			*) _v=$_v$_c ;;
+			esac
+		done
+		stty "$_tty"
+		trap - INT
+	else
+		read -r _v
+	fi
+	echo >&2
 	printf -v "$1" '%s' "$_v"
 }
 
@@ -295,8 +323,7 @@ prompt_entry() {
 	ask_line E_USER "username: " "$du"
 	if [ -n "$dp" ]; then
 		# edit: never display the existing password
-		read -rs -p "password (Enter keeps current): " E_PASS
-		echo >&2
+		ask_secret E_PASS "password (Enter keeps current): "
 		[ -z "$E_PASS" ] && E_PASS=$dp
 	else
 		# add: visible, pre-filled with a generated password (edit or replace it freely)
@@ -426,8 +453,7 @@ sync_download() { # $1 = default url (may be empty)
 	ask_line url "WebDAV URL: " "$1"
 	[ -n "$url" ] || die "a URL is required"
 	ask_line dav_user "WebDAV username: " ""
-	read -rs -p "WebDAV password: " dav_pass
-	echo >&2
+	ask_secret dav_pass "WebDAV password: "
 	mkdir -p "$(dirname "$PW_FILE")" || die "could not create the directory for $PW_FILE"
 
 	SYNC_TMP="$PW_FILE.sync.$$"
